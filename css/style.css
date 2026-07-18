@@ -1,0 +1,537 @@
+/* ==========================================================================
+   Il Diario Insieme — sistema di stile
+   Identità: diario/quaderno scolastico. Ogni strumento ha un colore "materia"
+   preso dalla palette fornita; il grigio/nero è l'inchiostro e la carta.
+   ========================================================================== */
+
+/* I font (Caveat, Work Sans) si caricano da <link> nell'<head> di ogni
+   pagina HTML, non da @import qui: @import è "bloccante" e su connessioni
+   lente ritarda tutto il resto dello stile. Vedi il commento nell'head
+   di index.html per il link esatto. */
+
+:root{
+  /* --- Carta e inchiostro --- */
+  --ink:#20211f;
+  --ink-soft:#5b5a54;
+  --paper:#fffdf9;
+  --paper-alt:#f6f4ee;
+  --rule:#d9dadc;
+  --rule-soft:#eceeec;
+  --black:#000000;
+  --white:#ffffff;
+
+  /* --- Colori "materia", dalla palette --- */
+  --zaino-100:#d9ef9a;
+  --zaino-600:#599c73;
+  --sonno-100:#a1dce0;
+  --sonno-600:#3a7d85;
+  --emozioni-100:#ffbf85;
+  --emozioni-600:#f45448;
+  --docente-100:#e4b5eb;
+  --docente-600:#9b56a7;
+  --accento-100:#ffb0d0;
+  --accento-600:#e94779;
+
+  /* --- Forma --- */
+  --radius-s:10px;
+  --radius-m:16px;
+  --radius-l:26px;
+  --shadow-card: 0 1px 0 rgba(32,33,31,.08), 0 10px 24px -16px rgba(32,33,31,.35);
+  --shadow-pop: 0 14px 34px -14px rgba(32,33,31,.4);
+
+  /* --- Tipografia --- */
+  --font-display:'Caveat', cursive;
+  --font-body:'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background:var(--paper-alt);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{ font-family:var(--font-display); font-weight:700; margin:0 0 .2em; line-height:1.05; }
+h1{ font-size:2.4rem; }
+h2{ font-size:1.8rem; }
+h3{ font-size:1.3rem; }
+p{ margin:0 0 .8em; }
+a{ color:var(--accento-600); }
+button{ font-family:inherit; }
+img{ max-width:100%; display:block; }
+
+/* Focus visibile ovunque, per accessibilità da tastiera */
+:focus-visible{
+  outline:3px solid var(--accento-600);
+  outline-offset:2px;
+  border-radius:6px;
+}
+
+/* ==========================================================================
+   Sfondo a righe: sensazione di foglio di quaderno, molto leggera
+   ========================================================================== */
+.ruled-bg{
+  background-image:
+    linear-gradient(var(--rule-soft) 1px, transparent 1px);
+  background-size: 100% 32px;
+  background-position: 0 12px;
+}
+
+/* ==========================================================================
+   Struttura app
+   ========================================================================== */
+.app-shell{
+  min-height:100svh;
+  display:flex;
+  flex-direction:column;
+}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 18px;
+  background:var(--paper);
+  border-bottom:2px solid var(--ink);
+  position:sticky;
+  top:0;
+  z-index:20;
+}
+.topbar .brand{
+  font-family:var(--font-display);
+  font-size:1.5rem;
+  font-weight:700;
+  color:var(--ink);
+  text-decoration:none;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.topbar .brand .dot{
+  width:12px; height:12px; border-radius:50%;
+  background:var(--accento-600);
+  display:inline-block;
+}
+.topbar-actions{ display:flex; align-items:center; gap:10px; }
+
+.page{
+  flex:1;
+  width:100%;
+  max-width:760px;
+  margin:0 auto;
+  padding:20px 16px 100px;
+}
+
+/* Navigazione: barra in basso su mobile, colonna laterale su desktop */
+.bottom-nav{
+  position:fixed;
+  left:0; right:0; bottom:0;
+  display:flex;
+  justify-content:space-around;
+  background:var(--paper);
+  border-top:2px solid var(--ink);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  z-index:20;
+}
+.bottom-nav a{
+  flex:1;
+  max-width:110px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+  text-decoration:none;
+  color:var(--ink-soft);
+  font-size:.72rem;
+  font-weight:600;
+  padding:6px 4px;
+  border-radius:var(--radius-s);
+}
+.bottom-nav a .icon{ font-size:1.35rem; line-height:1; }
+.bottom-nav a.active{ color:var(--ink); background:var(--paper-alt); }
+
+@media (min-width:860px){
+  .app-shell{ flex-direction:row; }
+  .bottom-nav{
+    position:sticky;
+    top:0;
+    left:auto; right:auto; bottom:auto;
+    flex-direction:column;
+    justify-content:flex-start;
+    align-items:stretch;
+    width:210px;
+    height:100svh;
+    border-top:none;
+    border-right:2px solid var(--ink);
+    padding:18px 10px;
+    gap:4px;
+  }
+  .bottom-nav a{ flex-direction:row; max-width:none; justify-content:flex-start; gap:10px; padding:10px 12px; font-size:.9rem; }
+  .page{ padding:28px 32px 60px; max-width:720px; }
+}
+
+/* ==========================================================================
+   Tab "materia" — la firma visiva: come i divisori colorati di un diario
+   ========================================================================== */
+.subject-tab{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  font-family:var(--font-display);
+  font-size:1.9rem;
+  font-weight:700;
+  color:var(--white);
+  padding:10px 26px 14px;
+  border-radius:var(--radius-m) var(--radius-m) 6px 6px;
+  margin:0 0 -14px 6px;
+  position:relative;
+  box-shadow:var(--shadow-card);
+}
+.subject-tab .emoji{ font-size:1.5rem; }
+.subject-tab--zaino{ background:var(--zaino-600); }
+.subject-tab--sonno{ background:var(--sonno-600); }
+.subject-tab--emozioni{ background:var(--emozioni-600); }
+.subject-tab--docente{ background:var(--docente-600); }
+.subject-tab--casa{ background:var(--accento-600); }
+
+.notebook-card{
+  background:var(--paper);
+  border:2px solid var(--ink);
+  border-radius:6px var(--radius-l) var(--radius-l) var(--radius-l);
+  padding:26px 20px 22px;
+  box-shadow:var(--shadow-card);
+  position:relative;
+  margin-bottom:24px;
+}
+/* Rilegatura a spirale, solo da tablet in su per non affollare il mobile */
+@media (min-width:640px){
+  .notebook-card{ padding-left:52px; }
+  .notebook-card::before{
+    content:"";
+    position:absolute;
+    left:18px; top:20px; bottom:20px;
+    width:14px;
+    background-image: radial-gradient(circle, var(--paper-alt) 0 4px, transparent 4.5px);
+    background-size: 14px 22px;
+    background-repeat: repeat-y;
+    border-left:2px dashed var(--rule);
+    border-right:2px dashed var(--rule);
+  }
+}
+
+.card-plain{
+  background:var(--paper);
+  border:2px solid var(--ink);
+  border-radius:var(--radius-m);
+  padding:18px;
+  box-shadow:var(--shadow-card);
+  margin-bottom:18px;
+}
+
+/* ==========================================================================
+   Bottoni
+   ========================================================================== */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-weight:600;
+  font-size:1rem;
+  padding:13px 22px;
+  border-radius:999px;
+  border:2px solid var(--ink);
+  background:var(--white);
+  color:var(--ink);
+  cursor:pointer;
+  text-decoration:none;
+  transition:transform .12s ease;
+  min-height:48px;
+}
+.btn:hover{ transform:translateY(-1px); }
+.btn:active{ transform:translateY(1px); }
+.btn-primary{ background:var(--ink); color:var(--white); border-color:var(--ink); }
+.btn-accent{ background:var(--accento-600); color:var(--white); border-color:var(--accento-600); }
+.btn-block{ width:100%; }
+.btn-ghost{ background:transparent; border-color:var(--rule); color:var(--ink-soft); }
+.btn-danger{ background:var(--white); color:var(--emozioni-600); border-color:var(--emozioni-600); }
+.btn[disabled]{ opacity:.5; cursor:not-allowed; transform:none; }
+.btn-sm{ padding:8px 16px; font-size:.85rem; min-height:38px; }
+
+/* ==========================================================================
+   Form
+   ========================================================================== */
+label{ display:block; font-weight:600; font-size:.9rem; margin-bottom:6px; }
+input[type=text], input[type=time], input[type=number], textarea, select{
+  width:100%;
+  font-family:inherit;
+  font-size:1rem;
+  padding:12px 14px;
+  border:2px solid var(--rule);
+  border-radius:var(--radius-s);
+  background:var(--white);
+  color:var(--ink);
+  margin-bottom:16px;
+}
+input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none; }
+.field-hint{ font-size:.8rem; color:var(--ink-soft); margin-top:-10px; margin-bottom:16px; }
+
+/* Checklist */
+.check-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 6px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.check-row:last-child{ border-bottom:none; }
+.check-row input[type=checkbox]{
+  width:26px; height:26px;
+  accent-color:var(--zaino-600);
+  flex-shrink:0;
+}
+.check-row label{ margin:0; font-weight:500; font-size:1.02rem; flex:1; cursor:pointer; }
+
+/* Scala a 5 (emozioni / umore) */
+.scale-5{ display:flex; gap:8px; justify-content:space-between; margin-bottom:16px; }
+.scale-5 button{
+  flex:1;
+  aspect-ratio:1;
+  font-size:1.6rem;
+  border-radius:var(--radius-s);
+  border:2px solid var(--rule);
+  background:var(--white);
+  cursor:pointer;
+}
+.scale-5 button.selected{ border-color:var(--ink); background:var(--emozioni-100); transform:scale(1.06); }
+.scale-5 button:focus-visible{ outline-offset:3px; }
+
+/* ==========================================================================
+   Badge, stato, avvisi
+   ========================================================================== */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  font-size:.78rem;
+  font-weight:700;
+  padding:4px 11px;
+  border-radius:999px;
+  border:2px solid var(--ink);
+  background:var(--white);
+}
+.badge-attesa{ background:var(--emozioni-100); }
+.badge-accettato{ background:var(--zaino-100); }
+.badge-rifiutato, .badge-revocato{ background:var(--rule-soft); color:var(--ink-soft); border-color:var(--rule); }
+
+.empty-state{
+  text-align:center;
+  padding:36px 16px;
+  color:var(--ink-soft);
+}
+.empty-state .emoji{ font-size:2.4rem; display:block; margin-bottom:10px; }
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:96px;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--ink);
+  color:var(--white);
+  padding:12px 20px;
+  border-radius:999px;
+  font-weight:600;
+  font-size:.92rem;
+  box-shadow:var(--shadow-pop);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+  z-index:50;
+  max-width:90vw;
+  text-align:center;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+@media (min-width:860px){ .toast{ bottom:24px; left:calc(210px + (100% - 210px)/2); } }
+
+/* ==========================================================================
+   Storico: lista e mini-grafico a barre
+   ========================================================================== */
+.history-list{ list-style:none; margin:0; padding:0; }
+.history-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:11px 4px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.history-item:last-child{ border-bottom:none; }
+.history-item .data{ font-weight:600; font-size:.85rem; color:var(--ink-soft); width:84px; flex-shrink:0; }
+.history-item .valore{ flex:1; }
+.history-item .nota{ font-size:.85rem; color:var(--ink-soft); font-style:italic; }
+
+.bar-chart{
+  display:flex;
+  align-items:flex-end;
+  gap:6px;
+  height:120px;
+  padding-top:10px;
+}
+.bar-chart .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+.bar-chart .bar{ width:100%; border-radius:6px 6px 3px 3px; min-height:6px; border:2px solid var(--ink); }
+.bar-chart .bar-label{ font-size:.68rem; color:var(--ink-soft); font-weight:600; }
+
+.streak-note{
+  font-size:.85rem;
+  color:var(--ink-soft);
+  margin-top:-6px;
+}
+
+/* ==========================================================================
+   Landing / login
+   ========================================================================== */
+.landing{
+  min-height:100svh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:32px 20px;
+  text-align:center;
+}
+.landing h1{ font-size:3rem; margin-bottom:6px; }
+.landing .sub{ color:var(--ink-soft); font-size:1.05rem; margin-bottom:34px; max-width:420px; }
+.role-grid{ display:grid; grid-template-columns:1fr; gap:16px; width:100%; max-width:360px; }
+@media (min-width:520px){ .role-grid{ grid-template-columns:1fr 1fr; } }
+.role-card{
+  border:2px solid var(--ink);
+  border-radius:var(--radius-l);
+  padding:22px 16px;
+  background:var(--white);
+  cursor:pointer;
+  text-align:center;
+  box-shadow:var(--shadow-card);
+}
+.role-card .emoji{ font-size:2.2rem; display:block; margin-bottom:8px; }
+.role-card strong{ font-family:var(--font-display); font-size:1.4rem; }
+.role-card p{ font-size:.85rem; color:var(--ink-soft); margin:6px 0 0; }
+
+/* ==========================================================================
+   Dashboard: cerchietti/riepilogo materie
+   ========================================================================== */
+.tool-grid{ display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:22px; }
+@media (min-width:560px){ .tool-grid{ grid-template-columns:1fr 1fr 1fr; } }
+.tool-card{
+  display:block;
+  text-decoration:none;
+  color:var(--ink);
+  border:2px solid var(--ink);
+  border-radius:var(--radius-m);
+  padding:16px;
+  background:var(--white);
+  box-shadow:var(--shadow-card);
+}
+.tool-card .top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.tool-card .emoji-badge{
+  width:44px; height:44px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.4rem;
+  border:2px solid var(--ink);
+}
+.tool-card--zaino .emoji-badge{ background:var(--zaino-100); }
+.tool-card--sonno .emoji-badge{ background:var(--sonno-100); }
+.tool-card--emozioni .emoji-badge{ background:var(--emozioni-100); }
+.tool-card h3{ margin:0 0 4px; }
+.tool-card .stato{ font-size:.85rem; color:var(--ink-soft); }
+
+/* Codice di condivisione */
+.share-code{
+  font-family:var(--font-display);
+  font-size:2rem;
+  letter-spacing:.15em;
+  font-weight:700;
+  background:var(--paper-alt);
+  border:2px dashed var(--ink);
+  border-radius:var(--radius-s);
+  padding:12px 18px;
+  display:inline-block;
+}
+
+/* Selettore giorni della settimana (editor modello checklist) */
+.day-pills{ display:flex; gap:6px; overflow-x:auto; padding:2px 2px 8px; margin-bottom:12px; -webkit-overflow-scrolling:touch; }
+.day-pills button{
+  flex:0 0 auto; padding:8px 14px; border-radius:999px;
+  border:2px solid var(--rule); background:var(--white);
+  font-weight:700; font-size:.82rem; cursor:pointer; color:var(--ink-soft); position:relative;
+}
+.day-pills button.active{ border-color:var(--ink); background:var(--zaino-100); color:var(--ink); }
+.day-pills button.oggi::after{
+  content:""; position:absolute; top:-3px; right:-3px;
+  width:8px; height:8px; border-radius:50%;
+  background:var(--accento-600); border:2px solid var(--paper);
+}
+
+/* Etichetta per una voce aggiunta una tantum, solo per oggi */
+.tag-extra{
+  display:inline-block; font-size:.68rem; font-weight:700;
+  background:var(--accento-100); border-radius:999px;
+  padding:2px 9px; margin-left:8px; vertical-align:middle;
+}
+
+/* Riquadro pieghevole "personalizza il modello" */
+details.editor-modello{
+  background:var(--paper); border:2px solid var(--ink); border-radius:var(--radius-m);
+  padding:4px 18px 18px; margin-bottom:24px; box-shadow:var(--shadow-card);
+}
+details.editor-modello summary{
+  cursor:pointer; font-family:var(--font-display); font-size:1.25rem;
+  font-weight:700; padding:14px 0; list-style:none;
+}
+details.editor-modello summary::-webkit-details-marker{ display:none; }
+details.editor-modello summary::after{
+  content:"›"; float:right; transform:rotate(90deg);
+  transition:transform .15s ease; font-size:1.4rem;
+}
+details.editor-modello[open] summary::after{ transform:rotate(270deg); }
+
+.riga-voce-modello{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:9px 2px; border-bottom:1px solid var(--rule-soft);
+}
+.riga-voce-modello:last-child{ border-bottom:none; }
+
+.section-title{ display:flex; align-items:center; justify-content:space-between; margin:28px 0 12px; }
+.section-title h2{ margin:0; }
+
+.link-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 6px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.link-row:last-child{ border-bottom:none; }
+.link-row .chi{ font-weight:600; }
+.link-row .azioni{ display:flex; gap:8px; }
+
+.comment{
+  background:var(--paper-alt);
+  border-radius:var(--radius-s);
+  padding:12px 14px;
+  margin-bottom:10px;
+}
+.comment .meta{ font-size:.75rem; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
+
+.spinner-wrap{ display:flex; justify-content:center; padding:40px 0; color:var(--ink-soft); }
+
+.helper-text{ color:var(--ink-soft); font-size:.92rem; }
+
+.divider{ border:none; border-top:1px solid var(--rule-soft); margin:20px 0; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition:none !important; animation:none !important; }
+}

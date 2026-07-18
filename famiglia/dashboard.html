@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oggi — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html" class="active"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--casa"><span class="emoji">🏠</span> <span id="saluto">Oggi</span></div>
+      <div class="notebook-card">
+        <p class="helper-text" id="data-oggi"></p>
+        <div class="tool-grid" id="tool-grid">
+          <div class="spinner-wrap">Un attimo…</div>
+        </div>
+        <p class="helper-text">Questi strumenti sono proposte da provare insieme, non compiti da svolgere alla perfezione — anche compilarli qualche giorno a settimana va benissimo.</p>
+      </div>
+
+      <div class="section-title"><h2>🔑 Il tuo codice</h2></div>
+      <div class="card-plain">
+        <p class="helper-text">Dai questo codice agli insegnanti che vuoi collegare. Potrai sempre accettare, rifiutare o revocare tu.</p>
+        <span class="share-code" id="codice-condivisione">------</span>
+        <div style="margin-top:14px;">
+          <button class="btn btn-sm" id="btn-copia-codice">📋 Copia codice</button>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>✋ Richieste in attesa</h2></div>
+      <div class="card-plain" id="zona-richieste">
+        <div class="empty-state"><span class="emoji">📭</span>Nessuna richiesta al momento.</div>
+      </div>
+
+      <div class="section-title"><h2>🤝 Insegnanti collegati</h2></div>
+      <div class="card-plain" id="zona-collegati">
+        <div class="empty-state"><span class="emoji">🍎</span>Nessun insegnante collegato per ora.</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "/js/firebase-init.js";
+import { todayId, formatDateLunga, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+document.getElementById("data-oggi").textContent = formatDateLunga(todayId()).replace(/^./, c => c.toUpperCase());
+
+proteggiPagina("famiglia", (user, utente) => {
+  document.getElementById("saluto").textContent = utente.nome ? `Ciao, famiglia di ${utente.nome.split(" ")[0]}` : "Oggi";
+
+  const famRef = doc(db, "famiglie", user.uid);
+
+  onSnapshot(famRef, (snap) => {
+    const fam = snap.data();
+    if(!fam) return;
+    document.getElementById("codice-condivisione").textContent = fam.codice_condivisione || "------";
+    caricaRiepilogoStrumenti(fam);
+  });
+
+  document.getElementById("btn-copia-codice").addEventListener("click", async () => {
+    const code = document.getElementById("codice-condivisione").textContent;
+    try{ await navigator.clipboard.writeText(code); showToast("Codice copiato ✅"); }
+    catch{ showToast("Copia il codice: " + code); }
+  });
+
+  async function caricaRiepilogoStrumenti(fam){
+    const oggi = todayId();
+    const [zainoSnap, emozioniSnap, sonnoSnap] = await Promise.all([
+      getDoc(doc(db, "famiglie", user.uid, "voci_zaino", oggi)),
+      getDoc(doc(db, "famiglie", user.uid, "voci_emozioni", oggi)),
+      getDoc(doc(db, "famiglie", user.uid, "voci_sonno", oggi))
+    ]);
+
+    const voci = fam.voci_zaino_personalizzate || [];
+    let zainoTesto = "Non ancora iniziato";
+    if(zainoSnap.exists()){
+      const d = zainoSnap.data().voci || {};
+      const fatti = voci.filter(v => d[v]).length;
+      zainoTesto = `${fatti}/${voci.length} pronti`;
+    }
+
+    const EMOJI_LIVELLO = ["😞","🙁","😐","🙂","😄"];
+    let emozioniTesto = "Non ancora compilato";
+    if(emozioniSnap.exists()){
+      const liv = emozioniSnap.data().livello;
+      emozioniTesto = `${EMOJI_LIVELLO[liv-1] || "•"} registrato`;
+    }
+
+    let sonnoTesto = "Non ancora compilato";
+    if(sonnoSnap.exists()) sonnoTesto = "Registrato";
+
+    document.getElementById("tool-grid").innerHTML = `
+      <a class="tool-card tool-card--zaino" href="/famiglia/zaino.html">
+        <div class="top"><span class="emoji-badge">🎒</span></div>
+        <h3>Zaino</h3><p class="stato">${zainoTesto}</p>
+      </a>
+      <a class="tool-card tool-card--emozioni" href="/famiglia/emozioni.html">
+        <div class="top"><span class="emoji-badge">🌡️</span></div>
+        <h3>Emozioni</h3><p class="stato">${emozioniTesto}</p>
+      </a>
+      <a class="tool-card tool-card--sonno" href="/famiglia/sonno.html">
+        <div class="top"><span class="emoji-badge">🌙</span></div>
+        <h3>Sonno</h3><p class="stato">${sonnoTesto}</p>
+      </a>
+    `;
+  }
+
+  const collegamentiRef = collection(db, "famiglie", user.uid, "collegamenti");
+  onSnapshot(collegamentiRef, (snap) => {
+    const inAttesa = [];
+    const accettati = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if(data.stato === "in_attesa") inAttesa.push({ id: d.id, ...data });
+      if(data.stato === "accettato") accettati.push({ id: d.id, ...data });
+    });
+
+    const zonaRichieste = document.getElementById("zona-richieste");
+    zonaRichieste.innerHTML = inAttesa.length === 0
+      ? `<div class="empty-state"><span class="emoji">📭</span>Nessuna richiesta al momento.</div>`
+      : inAttesa.map(r => `
+        <div class="link-row">
+          <span class="chi">${escapeHtml(r.nome_docente || "Un docente")}</span>
+          <div class="azioni">
+            <button class="btn btn-sm btn-primary" data-accetta="${r.id}">Accetta</button>
+            <button class="btn btn-sm btn-ghost" data-rifiuta="${r.id}">Rifiuta</button>
+          </div>
+        </div>`).join("");
+
+    const zonaCollegati = document.getElementById("zona-collegati");
+    zonaCollegati.innerHTML = accettati.length === 0
+      ? `<div class="empty-state"><span class="emoji">🍎</span>Nessun insegnante collegato per ora.</div>`
+      : accettati.map(r => `
+        <div class="link-row">
+          <span class="chi">${escapeHtml(r.nome_docente || "Un docente")} <span class="badge badge-accettato">collegato</span></span>
+          <div class="azioni">
+            <button class="btn btn-sm btn-danger" data-revoca="${r.id}">Revoca</button>
+          </div>
+        </div>`).join("");
+
+    zonaRichieste.querySelectorAll("[data-accetta]").forEach(b => b.addEventListener("click", () => rispondi(b.dataset.accetta, "accettato")));
+    zonaRichieste.querySelectorAll("[data-rifiuta]").forEach(b => b.addEventListener("click", () => rispondi(b.dataset.rifiuta, null)));
+    zonaCollegati.querySelectorAll("[data-revoca]").forEach(b => b.addEventListener("click", () => rispondi(b.dataset.revoca, null)));
+  });
+
+  async function rispondi(uidDocente, esito){
+    const ref = doc(db, "famiglie", user.uid, "collegamenti", uidDocente);
+    if(esito === "accettato"){
+      await updateDoc(ref, { stato: "accettato", risposto_il: serverTimestamp() });
+      showToast("Collegamento accettato 🤝");
+    } else {
+      await deleteDoc(ref);
+      showToast("Fatto.");
+    }
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+});
+</script>
+</body>
+</html>

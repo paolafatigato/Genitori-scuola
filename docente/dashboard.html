@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Le mie famiglie — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/docente/dashboard.html" class="active"><span class="icon">🍎</span>Famiglie</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/docente/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--docente"><span class="emoji">🍎</span> Vista Docente</div>
+      <div class="notebook-card">
+        <p class="helper-text">Sei in sola lettura: puoi vedere i dati solo delle famiglie che ti hanno accettato, e puoi lasciare un commento.</p>
+        <label for="input-codice">Codice della famiglia</label>
+        <input type="text" id="input-codice" placeholder="Es. AB12CD" maxlength="6" style="text-transform:uppercase;">
+        <button class="btn btn-primary btn-block" id="btn-collega">Invia richiesta di collegamento</button>
+      </div>
+
+      <div class="section-title"><h2>🤝 Famiglie collegate</h2></div>
+      <div class="card-plain" id="zona-collegate">
+        <div class="spinner-wrap">Un attimo…</div>
+      </div>
+
+      <div class="section-title"><h2>⏳ Richieste in attesa</h2></div>
+      <div class="card-plain" id="zona-attesa">
+        <div class="empty-state"><span class="emoji">📭</span>Nessuna richiesta in attesa.</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc, collectionGroup, query, where, onSnapshot, serverTimestamp } from "/js/firebase-init.js";
+import { showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+proteggiPagina("docente", (user, utente) => {
+
+  document.getElementById("btn-collega").addEventListener("click", async () => {
+    const codice = document.getElementById("input-codice").value.trim().toUpperCase();
+    if(codice.length < 4){ showToast("Inserisci il codice ricevuto dalla famiglia."); return; }
+
+    const mappaSnap = await getDoc(doc(db, "codici_condivisione", codice));
+    if(!mappaSnap.exists()){ showToast("Codice non trovato: controlla e riprova."); return; }
+
+    const uidFamiglia = mappaSnap.data().uid_famiglia;
+    const collegamentoRef = doc(db, "famiglie", uidFamiglia, "collegamenti", user.uid);
+    const esistente = await getDoc(collegamentoRef);
+    if(esistente.exists()){
+      showToast(esistente.data().stato === "accettato" ? "Sei già collegato a questa famiglia." : "Richiesta già inviata, in attesa di risposta.");
+      return;
+    }
+
+    await setDoc(collegamentoRef, {
+      stato: "in_attesa",
+      uid_docente: user.uid,
+      nome_docente: utente.nome || user.email,
+      codice_usato: codice,
+      richiesto_il: serverTimestamp()
+    });
+    document.getElementById("input-codice").value = "";
+    showToast("Richiesta inviata ✅");
+  });
+
+  const q = query(collectionGroup(db, "collegamenti"), where("uid_docente", "==", user.uid));
+  onSnapshot(q, async (snap) => {
+    const attesa = [];
+    const collegate = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if(data.stato === "in_attesa") attesa.push(data);
+      if(data.stato === "accettato") collegate.push({ famigliaRef: d.ref.parent.parent });
+    });
+
+    document.getElementById("zona-attesa").innerHTML = attesa.length
+      ? attesa.map(a => `
+        <div class="link-row">
+          <span class="chi">Codice ${a.codice_usato || "—"}</span>
+          <span class="badge badge-attesa">in attesa</span>
+        </div>`).join("")
+      : `<div class="empty-state"><span class="emoji">📭</span>Nessuna richiesta in attesa.</div>`;
+
+    if(collegate.length === 0){
+      document.getElementById("zona-collegate").innerHTML = `<div class="empty-state"><span class="emoji">🍎</span>Nessuna famiglia collegata ancora. Chiedi il codice a una famiglia per iniziare.</div>`;
+      return;
+    }
+
+    const famiglie = await Promise.all(collegate.map(c => getDoc(c.famigliaRef)));
+    document.getElementById("zona-collegate").innerHTML = famiglie.map(f => {
+      const nome = (f.exists() && f.data().nome_alunno) ? f.data().nome_alunno : "Famiglia senza nome indicato";
+      return `
+        <a class="link-row" href="/docente/famiglia.html?id=${f.id}" style="text-decoration:none; color:inherit;">
+          <span class="chi">${nome}</span>
+          <span class="badge badge-accettato">apri →</span>
+        </a>`;
+    }).join("");
+  });
+});
+</script>
+</body>
+</html>

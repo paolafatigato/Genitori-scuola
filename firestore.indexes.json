@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "collegamenti",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "uid_docente", "order": "ASCENDING" },
+        { "fieldPath": "stato", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

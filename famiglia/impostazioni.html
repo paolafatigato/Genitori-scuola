@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Impostazioni — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html" class="active"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--casa"><span class="emoji">⚙️</span> Impostazioni</div>
+      <div class="notebook-card">
+        <label for="nome-alunno">Nome di figlio/a (facoltativo, resta privato)</label>
+        <input type="text" id="nome-alunno" placeholder="Es. Giulia">
+        <button class="btn btn-sm" id="btn-salva-alunno">Salva nome</button>
+      </div>
+
+      <div class="section-title"><h2>🎒 Voci della checklist zaino</h2></div>
+      <div class="card-plain">
+        <p class="helper-text">Aggiungi o togli voci per adattarla alle vostre giornate.</p>
+        <ul class="history-list" id="lista-voci-zaino"></ul>
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <input type="text" id="nuova-voce" placeholder="Nuova voce…" style="margin-bottom:0;">
+          <button class="btn btn-sm btn-primary" id="btn-aggiungi-voce" style="flex-shrink:0;">Aggiungi</button>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>👤 Account</h2></div>
+      <div class="card-plain">
+        <p class="helper-text" id="email-account"></p>
+        <button class="btn btn-ghost" id="btn-esci-2">Esci dall'account</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, updateDoc, onSnapshot } from "/js/firebase-init.js";
+import { showToast } from "/js/utils.js";
+
+function vaiAlLogin(){ esci().then(() => window.location.href = "/index.html"); }
+document.getElementById("btn-esci").addEventListener("click", vaiAlLogin);
+document.getElementById("btn-esci-2").addEventListener("click", vaiAlLogin);
+
+proteggiPagina("famiglia", (user, utente) => {
+  document.getElementById("email-account").textContent = `Accesso eseguito come ${utente.email || user.email}`;
+
+  const famRef = doc(db, "famiglie", user.uid);
+  let voci = [];
+
+  onSnapshot(famRef, (snap) => {
+    const fam = snap.data();
+    if(!fam) return;
+    document.getElementById("nome-alunno").value = fam.nome_alunno || "";
+    voci = fam.voci_zaino_personalizzate || [];
+    renderVoci();
+  });
+
+  function renderVoci(){
+    document.getElementById("lista-voci-zaino").innerHTML = voci.map((v, i) => `
+      <li class="history-item">
+        <span class="valore">${v}</span>
+        <button class="btn btn-sm btn-ghost" data-rimuovi="${i}">Rimuovi</button>
+      </li>`).join("") || `<div class="empty-state">Nessuna voce. Aggiungine una qui sotto.</div>`;
+
+    document.querySelectorAll("[data-rimuovi]").forEach(b => b.addEventListener("click", async () => {
+      voci = voci.filter((_, i) => i !== Number(b.dataset.rimuovi));
+      await updateDoc(famRef, { voci_zaino_personalizzate: voci });
+      showToast("Voce rimossa.");
+    }));
+  }
+
+  document.getElementById("btn-aggiungi-voce").addEventListener("click", async () => {
+    const input = document.getElementById("nuova-voce");
+    const valore = input.value.trim();
+    if(!valore) return;
+    voci = [...voci, valore];
+    await updateDoc(famRef, { voci_zaino_personalizzate: voci });
+    input.value = "";
+    showToast("Voce aggiunta.");
+  });
+
+  document.getElementById("btn-salva-alunno").addEventListener("click", async () => {
+    await updateDoc(famRef, { nome_alunno: document.getElementById("nome-alunno").value.trim() });
+    showToast("Salvato ✅");
+  });
+});
+</script>
+</body>
+</html>

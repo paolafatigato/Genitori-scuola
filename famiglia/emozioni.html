@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Emozioni — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/emozioni.html" class="active"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--emozioni"><span class="emoji">🌡️</span> Emozioni</div>
+      <div class="notebook-card">
+        <p class="helper-text">Prova a chiedere: "Che intensità aveva l'emozione più forte di oggi?" Non serve dire quale emozione, se non ne ha voglia.</p>
+        <div class="scale-5" id="scala-emozioni">
+          <button type="button" data-livello="1">😞</button>
+          <button type="button" data-livello="2">🙁</button>
+          <button type="button" data-livello="3">😐</button>
+          <button type="button" data-livello="4">🙂</button>
+          <button type="button" data-livello="5">😄</button>
+        </div>
+        <label for="nota-emozione">Nota (facoltativa)</label>
+        <textarea id="nota-emozione" rows="2" placeholder="Solo se ti va di scrivere qualcosa…"></textarea>
+        <button class="btn btn-primary btn-block" id="btn-salva-emozione">Salva</button>
+      </div>
+
+      <div class="section-title"><h2>📖 Storico</h2></div>
+      <div class="card-plain">
+        <div class="bar-chart" id="grafico-emozioni"></div>
+        <hr class="divider">
+        <ul class="history-list" id="lista-storico-emozioni"></ul>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc, onSnapshot } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+const EMOJI = ["😞","🙁","😐","🙂","😄"];
+let livelloScelto = null;
+
+document.querySelectorAll("#scala-emozioni button").forEach(b => {
+  b.addEventListener("click", () => {
+    livelloScelto = Number(b.dataset.livello);
+    document.querySelectorAll("#scala-emozioni button").forEach(x => x.classList.toggle("selected", x === b));
+  });
+});
+
+proteggiPagina("famiglia", (user) => {
+  const oggi = todayId();
+  const oggiRef = doc(db, "famiglie", user.uid, "voci_emozioni", oggi);
+
+  onSnapshot(oggiRef, (snap) => {
+    if(snap.exists()){
+      const d = snap.data();
+      livelloScelto = d.livello;
+      document.querySelectorAll("#scala-emozioni button").forEach(x => x.classList.toggle("selected", Number(x.dataset.livello) === d.livello));
+      document.getElementById("nota-emozione").value = d.nota || "";
+    }
+  });
+
+  document.getElementById("btn-salva-emozione").addEventListener("click", async () => {
+    if(!livelloScelto){ showToast("Scegli prima un'intensità."); return; }
+    const nota = document.getElementById("nota-emozione").value.trim();
+    await setDoc(oggiRef, { livello: livelloScelto, nota, aggiornato_il: new Date().toISOString() }, { merge: true });
+    showToast("Salvato ✅");
+  });
+
+  caricaStorico();
+
+  async function caricaStorico(){
+    const giorni = ultimiNGiorni(14);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_emozioni", g))));
+
+    const barre = risultati.map((snap, idx) => ({
+      g: giorni[idx],
+      livello: snap.exists() ? snap.data().livello : 0
+    }));
+
+    document.getElementById("grafico-emozioni").innerHTML = barre.map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${b.livello ? b.livello*20 : 4}%; background:${b.livello ? "var(--emozioni-100)" : "var(--rule-soft)"};"></div>
+        <span class="bar-label">${b.livello ? EMOJI[b.livello-1] : "–"}</span>
+      </div>`).join("");
+
+    const conVoci = barre.filter(b => b.livello).reverse();
+    document.getElementById("lista-storico-emozioni").innerHTML = conVoci.length
+      ? conVoci.map(b => `
+        <li class="history-item">
+          <span class="data">${formatDateBreve(b.g)}</span>
+          <span class="valore">${EMOJI[b.livello-1]}</span>
+        </li>`).join("")
+      : `<div class="empty-state"><span class="emoji">🌡️</span>Ancora nessuna compilazione.</div>`;
+  }
+});
+</script>
+</body>
+</html>

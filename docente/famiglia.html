@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Famiglia — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/docente/dashboard.html" class="active"><span class="icon">🍎</span>Famiglie</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/docente/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <a href="/docente/dashboard.html" class="helper-text">← Tutte le famiglie</a>
+      <div class="subject-tab subject-tab--docente"><span class="emoji">🍎</span> <span id="titolo-famiglia">Famiglia</span></div>
+      <div class="notebook-card">
+        <span class="badge badge-accettato" style="margin-bottom:14px; display:inline-block;">Sola lettura</span>
+        <div id="contenuto-famiglia"><div class="spinner-wrap">Un attimo…</div></div>
+      </div>
+
+      <div id="zona-commenti-wrap" style="display:none;">
+        <div class="section-title"><h2>💬 Commenti</h2></div>
+        <div class="card-plain">
+          <div id="lista-commenti"></div>
+          <hr class="divider">
+          <label for="nuovo-commento">Lascia un commento per la famiglia</label>
+          <textarea id="nuovo-commento" rows="2" placeholder="Visibile alla famiglia…"></textarea>
+          <button class="btn btn-primary" id="btn-invia-commento">Invia</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, onSnapshot, collection, addDoc, orderBy, query, serverTimestamp } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+const params = new URLSearchParams(window.location.search);
+const idFamiglia = params.get("id");
+const EMOJI = ["😞","🙁","😐","🙂","😄"];
+
+if(!idFamiglia){
+  window.location.href = "/docente/dashboard.html";
+}
+
+proteggiPagina("docente", async (user, utente) => {
+  const famRef = doc(db, "famiglie", idFamiglia);
+  const famSnap = await getDoc(famRef);
+
+  if(!famSnap.exists()){
+    document.getElementById("contenuto-famiglia").innerHTML = `<div class="empty-state"><span class="emoji">🚫</span>Non hai accesso a questa famiglia, oppure il collegamento non è (ancora) attivo.</div>`;
+    return;
+  }
+
+  const fam = famSnap.data();
+  document.getElementById("titolo-famiglia").textContent = fam.nome_alunno || "Famiglia";
+  document.getElementById("zona-commenti-wrap").style.display = "";
+
+  const giorni = ultimiNGiorni(7);
+
+  const [zainoDocs, emozioniDocs, sonnoDocs] = await Promise.all([
+    Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", idFamiglia, "voci_zaino", g)))),
+    Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", idFamiglia, "voci_emozioni", g)))),
+    Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", idFamiglia, "voci_sonno", g))))
+  ]);
+
+  const voci = fam.voci_zaino_personalizzate || [];
+
+  const rigaZaino = zainoDocs.map((snap, i) => {
+    if(!snap.exists()) return null;
+    const fatti = voci.filter(v => snap.data().voci?.[v]).length;
+    return `<li class="history-item"><span class="data">${formatDateBreve(giorni[i])}</span><span class="valore">${fatti}/${voci.length} pronti</span></li>`;
+  }).filter(Boolean).reverse();
+
+  const rigaEmozioni = emozioniDocs.map((snap, i) => {
+    if(!snap.exists()) return null;
+    const d = snap.data();
+    return `<li class="history-item"><span class="data">${formatDateBreve(giorni[i])}</span><span class="valore">${EMOJI[d.livello-1] || "•"}</span>${d.nota ? `<span class="nota">"${escapeHtml(d.nota)}"</span>` : ""}</li>`;
+  }).filter(Boolean).reverse();
+
+  const rigaSonno = sonnoDocs.map((snap, i) => {
+    if(!snap.exists()) return null;
+    const d = snap.data();
+    return `<li class="history-item"><span class="data">${formatDateBreve(giorni[i])}</span><span class="valore">${d.ora_spegnimento_luci||"–"} → ${d.ora_risveglio||"–"} ${d.umore_risveglio ? EMOJI[d.umore_risveglio-1] : ""}</span></li>`;
+  }).filter(Boolean).reverse();
+
+  document.getElementById("contenuto-famiglia").innerHTML = `
+    <h3>🎒 Zaino, ultimi 7 giorni</h3>
+    <ul class="history-list">${rigaZaino.join("") || `<div class="empty-state">Nessuna compilazione recente.</div>`}</ul>
+    <hr class="divider">
+    <h3>🌡️ Emozioni, ultimi 7 giorni</h3>
+    <ul class="history-list">${rigaEmozioni.join("") || `<div class="empty-state">Nessuna compilazione recente.</div>`}</ul>
+    <hr class="divider">
+    <h3>🌙 Sonno, ultimi 7 giorni</h3>
+    <ul class="history-list">${rigaSonno.join("") || `<div class="empty-state">Nessuna compilazione recente.</div>`}</ul>
+  `;
+
+  const commentiRef = collection(db, "famiglie", idFamiglia, "commenti");
+  onSnapshot(query(commentiRef, orderBy("creato_il", "desc")), (snap) => {
+    const el = document.getElementById("lista-commenti");
+    if(snap.empty){
+      el.innerHTML = `<div class="empty-state"><span class="emoji">💬</span>Ancora nessun commento.</div>`;
+      return;
+    }
+    el.innerHTML = snap.docs.map(d => {
+      const c = d.data();
+      return `<div class="comment"><div class="meta">${escapeHtml(c.nome_docente || "Docente")}</div>${escapeHtml(c.testo)}</div>`;
+    }).join("");
+  });
+
+  document.getElementById("btn-invia-commento").addEventListener("click", async () => {
+    const testo = document.getElementById("nuovo-commento").value.trim();
+    if(!testo) return;
+    await addDoc(commentiRef, {
+      docente_uid: user.uid,
+      nome_docente: utente.nome || user.email,
+      testo,
+      creato_il: serverTimestamp()
+    });
+    document.getElementById("nuovo-commento").value = "";
+    showToast("Commento inviato ✅");
+  });
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+});
+</script>
+</body>
+</html>

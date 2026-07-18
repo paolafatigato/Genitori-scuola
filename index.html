@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./css/style.css?v=1">
+</head>
+<body>
+
+<div class="landing" id="landing">
+  <h1>📔 Il Diario Insieme</h1>
+  <p class="sub">Scuola e famiglia, sulla stessa pagina. Tre piccoli strumenti da provare insieme a casa, in collegamento con chi segue tuo figlio o tua figlia a scuola.</p>
+
+  <div id="zona-login">
+    <button class="btn btn-primary" id="btn-login">
+      <span>🔑</span> Accedi con Google
+    </button>
+  </div>
+
+  <div id="zona-ruolo" style="display:none; width:100%;">
+    <p class="sub" style="margin-bottom:18px;">Come vuoi usare Il Diario Insieme?</p>
+    <div class="role-grid">
+      <button class="role-card" id="ruolo-famiglia" type="button">
+        <span class="emoji">🏠</span>
+        <strong>Famiglia</strong>
+        <p>Compilo gli strumenti con mio figlio/a e li condivido con i suoi insegnanti.</p>
+      </button>
+      <button class="role-card" id="ruolo-docente" type="button">
+        <span class="emoji">🍎</span>
+        <strong>Docente</strong>
+        <p>Consulto in sola lettura gli strumenti delle famiglie che mi hanno accettato.</p>
+      </button>
+    </div>
+  </div>
+
+  <div id="zona-caricamento" style="display:none;" class="spinner-wrap">Un attimo…</div>
+</div>
+
+<script type="module">
+import { auth, onAuthStateChanged } from "/js/firebase-init.js";
+import { accediConGoogle, leggiUtente, creaProfilo } from "/js/auth.js";
+import { showToast } from "/js/utils.js";
+
+const zonaLogin = document.getElementById("zona-login");
+const zonaRuolo = document.getElementById("zona-ruolo");
+const zonaCaricamento = document.getElementById("zona-caricamento");
+
+function mostra(el){
+  [zonaLogin, zonaRuolo, zonaCaricamento].forEach(z => z.style.display = "none");
+  el.style.display = "";
+}
+
+document.getElementById("btn-login").addEventListener("click", async () => {
+  try{
+    mostra(zonaCaricamento);
+    await accediConGoogle();
+  }catch(err){
+    console.error(err);
+    showToast("Accesso non riuscito. Riprova.");
+    mostra(zonaLogin);
+  }
+});
+
+async function sceglieRuolo(ruolo){
+  mostra(zonaCaricamento);
+  const user = auth.currentUser;
+  await creaProfilo(user, ruolo);
+  window.location.href = ruolo === "famiglia" ? "/famiglia/dashboard.html" : "/docente/dashboard.html";
+}
+document.getElementById("ruolo-famiglia").addEventListener("click", () => sceglieRuolo("famiglia"));
+document.getElementById("ruolo-docente").addEventListener("click", () => sceglieRuolo("docente"));
+
+onAuthStateChanged(auth, async (user) => {
+  if(!user){
+    mostra(zonaLogin);
+    return;
+  }
+  mostra(zonaCaricamento);
+  const utente = await leggiUtente(user.uid);
+  if(!utente){
+    mostra(zonaRuolo);
+  } else {
+    window.location.href = utente.ruolo === "famiglia" ? "/famiglia/dashboard.html" : "/docente/dashboard.html";
+  }
+});
+</script>
+</body>
+</html>

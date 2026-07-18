@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sonno — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html" class="active"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--sonno"><span class="emoji">🌙</span> Sonno</div>
+      <div class="notebook-card">
+        <p class="helper-text" id="routine-info">Caricamento routine…</p>
+
+        <label>Avete seguito la routine oggi?</label>
+        <div style="display:flex; gap:10px; margin-bottom:18px;">
+          <button type="button" class="btn btn-block" id="btn-rispettata-si">✅ Sì</button>
+          <button type="button" class="btn btn-block" id="btn-rispettata-no">✏️ No, orari diversi</button>
+        </div>
+
+        <div id="zona-orari-diversi" style="display:none;">
+          <label for="ora-luci-eff">Luci spente alle (orario seguito oggi)</label>
+          <input type="time" id="ora-luci-eff">
+          <label for="ora-sveglia-eff">Sveglio/a alle (orario seguito oggi)</label>
+          <input type="time" id="ora-sveglia-eff">
+        </div>
+
+        <label>Umore al risveglio</label>
+        <div class="scale-5" id="scala-umore">
+          <button type="button" data-livello="1">😞</button>
+          <button type="button" data-livello="2">🙁</button>
+          <button type="button" data-livello="3">😐</button>
+          <button type="button" data-livello="4">🙂</button>
+          <button type="button" data-livello="5">😄</button>
+        </div>
+        <button class="btn btn-primary btn-block" id="btn-salva-sonno">Salva</button>
+      </div>
+
+      <details class="editor-modello" id="editor-routine">
+        <summary>⚙️ Imposta/modifica la routine</summary>
+        <p class="helper-text">Questi sono gli orari "ideali" di riferimento. Ogni giorno potete confermare che li avete seguiti, oppure segnare gli orari diversi che avete fatto davvero.</p>
+        <label for="routine-luci">Luci spente alle (routine)</label>
+        <input type="time" id="routine-luci">
+        <label for="routine-sveglia">Sveglia alle (routine)</label>
+        <input type="time" id="routine-sveglia">
+        <button class="btn btn-sm btn-primary" id="btn-salva-routine">Salva routine</button>
+      </details>
+
+      <div class="section-title"><h2>📖 Storico</h2></div>
+      <div class="card-plain">
+        <p class="streak-note" id="riepilogo-routine"></p>
+        <div class="bar-chart" id="grafico-sonno"></div>
+        <hr class="divider">
+        <ul class="history-list" id="lista-storico-sonno"></ul>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc, onSnapshot } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+const EMOJI = ["😞","🙁","😐","🙂","😄"];
+let umoreScelto = null;
+let rispettataScelta = null; // true | false | null (non ancora scelto oggi)
+
+document.querySelectorAll("#scala-umore button").forEach(b => {
+  b.addEventListener("click", () => {
+    umoreScelto = Number(b.dataset.livello);
+    document.querySelectorAll("#scala-umore button").forEach(x => x.classList.toggle("selected", x === b));
+  });
+});
+
+function mostraSceltaRispettata(valore){
+  rispettataScelta = valore;
+  document.getElementById("btn-rispettata-si").classList.toggle("btn-primary", valore === true);
+  document.getElementById("btn-rispettata-no").classList.toggle("btn-primary", valore === false);
+  document.getElementById("zona-orari-diversi").style.display = (valore === false) ? "" : "none";
+}
+document.getElementById("btn-rispettata-si").addEventListener("click", () => mostraSceltaRispettata(true));
+document.getElementById("btn-rispettata-no").addEventListener("click", () => mostraSceltaRispettata(false));
+
+function oreSonno(luci, sveglia){
+  if(!luci || !sveglia) return null;
+  const [lh, lm] = luci.split(":").map(Number);
+  const [sh, sm] = sveglia.split(":").map(Number);
+  let diff = (sh*60+sm) - (lh*60+lm);
+  if(diff <= 0) diff += 24*60; // passa la mezzanotte
+  return Math.round((diff/60)*10)/10;
+}
+
+proteggiPagina("famiglia", (user) => {
+  const oggi = todayId();
+  const famRef = doc(db, "famiglie", user.uid);
+  const oggiRef = doc(db, "famiglie", user.uid, "voci_sonno", oggi);
+
+  let famData = null;
+
+  onSnapshot(famRef, (snap) => {
+    famData = snap.data() || {};
+    const routine = famData.routine_sonno;
+    document.getElementById("routine-info").textContent = routine && routine.ora_luci && routine.ora_sveglia
+      ? `La vostra routine: luci spente alle ${routine.ora_luci}, sveglia alle ${routine.ora_sveglia}.`
+      : "Routine non ancora impostata: apri \"Imposta/modifica la routine\" qui sotto per definirla.";
+    document.getElementById("routine-luci").value = routine?.ora_luci || "";
+    document.getElementById("routine-sveglia").value = routine?.ora_sveglia || "";
+  });
+
+  document.getElementById("btn-salva-routine").addEventListener("click", async () => {
+    const luci = document.getElementById("routine-luci").value;
+    const sveglia = document.getElementById("routine-sveglia").value;
+    if(!luci || !sveglia){ showToast("Inserisci entrambi gli orari della routine."); return; }
+    await setDoc(famRef, { routine_sonno: { ora_luci: luci, ora_sveglia: sveglia } }, { merge: true });
+    document.getElementById("editor-routine").removeAttribute("open");
+    showToast("Routine salvata ✅");
+  });
+
+  onSnapshot(oggiRef, (snap) => {
+    if(snap.exists()){
+      const d = snap.data();
+      if(typeof d.rispettata === "boolean") mostraSceltaRispettata(d.rispettata);
+      if(d.rispettata === false){
+        document.getElementById("ora-luci-eff").value = d.ora_spegnimento_luci || "";
+        document.getElementById("ora-sveglia-eff").value = d.ora_risveglio || "";
+      }
+      if(d.umore_risveglio){
+        umoreScelto = d.umore_risveglio;
+        document.querySelectorAll("#scala-umore button").forEach(x => x.classList.toggle("selected", Number(x.dataset.livello) === d.umore_risveglio));
+      }
+    }
+  });
+
+  document.getElementById("btn-salva-sonno").addEventListener("click", async () => {
+    if(rispettataScelta === null){ showToast("Dì prima se avete seguito la routine oggi."); return; }
+
+    let luci, sveglia;
+    if(rispettataScelta === true){
+      // Se è stata rispettata, uso gli orari della routine attuale, così lo
+      // storico resta corretto anche se in futuro la routine cambia.
+      luci = famData?.routine_sonno?.ora_luci || null;
+      sveglia = famData?.routine_sonno?.ora_sveglia || null;
+    } else {
+      luci = document.getElementById("ora-luci-eff").value || null;
+      sveglia = document.getElementById("ora-sveglia-eff").value || null;
+    }
+
+    await setDoc(oggiRef, {
+      rispettata: rispettataScelta,
+      ora_spegnimento_luci: luci,
+      ora_risveglio: sveglia,
+      umore_risveglio: umoreScelto || null,
+      aggiornato_il: new Date().toISOString()
+    }, { merge: true });
+    showToast("Salvato ✅");
+  });
+
+  caricaStorico();
+
+  async function caricaStorico(){
+    const giorni = ultimiNGiorni(14);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_sonno", g))));
+
+    let giorniRispettati = 0;
+    let giorniCompilati = 0;
+
+    const righe = risultati.map((snap, idx) => {
+      const g = giorni[idx];
+      if(!snap.exists()) return { g, ore: null, umore: null, rispettata: null };
+      const d = snap.data();
+      giorniCompilati++;
+      if(d.rispettata === true) giorniRispettati++;
+      return {
+        g,
+        ore: oreSonno(d.ora_spegnimento_luci, d.ora_risveglio),
+        umore: d.umore_risveglio,
+        rispettata: d.rispettata
+      };
+    });
+
+    document.getElementById("riepilogo-routine").textContent = giorniCompilati
+      ? `Routine rispettata ${giorniRispettati} giorni su ${giorniCompilati} compilati (ultimi 14 giorni).`
+      : `Ancora nessuna giornata registrata.`;
+
+    document.getElementById("grafico-sonno").innerHTML = righe.map(r => `
+      <div class="bar-col">
+        <div class="bar" style="height:${r.ore ? Math.min(r.ore/12*100,100) : 4}%; background:${r.ore ? "var(--sonno-100)" : "var(--rule-soft)"};"></div>
+        <span class="bar-label">${r.ore ?? "–"}</span>
+      </div>`).join("");
+
+    const conDati = righe.filter(r => r.rispettata !== null).reverse();
+    document.getElementById("lista-storico-sonno").innerHTML = conDati.length
+      ? conDati.map(r => `
+        <li class="history-item">
+          <span class="data">${formatDateBreve(r.g)}</span>
+          <span class="valore">${r.rispettata ? "✅" : "✏️"} ${r.ore !== null ? r.ore + " h" : "–"} ${r.umore ? EMOJI[r.umore-1] : ""}</span>
+        </li>`).join("")
+      : `<div class="empty-state"><span class="emoji">🌙</span>Ancora nessuna compilazione.</div>`;
+  }
+});
+</script>
+</body>
+</html>

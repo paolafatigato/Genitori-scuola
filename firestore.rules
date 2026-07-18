@@ -1,0 +1,126 @@
+rules_version = '2';
+
+// ============================================================================
+// Regole di sicurezza — Il Diario Insieme
+//
+// Principio generale:
+//  - Una Famiglia legge e scrive SOLO i propri dati (famiglie/{proprio_uid}).
+//  - Un Docente legge i dati di una famiglia SOLO se esiste un collegamento
+//    con stato "accettato"; non può mai modificare i dati della famiglia;
+//    può solo scrivere nella sotto-collezione "commenti".
+//  - L'accettazione/rifiuto/revoca di un collegamento è un'azione che può
+//    fare solo la Famiglia.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funzioni di supporto ----------
+
+    function autenticato() {
+      return request.auth != null;
+    }
+
+    // La famiglia è "proprietaria" del documento famiglie/{uidFamiglia}
+    // quando il suo uid coincide con l'id del documento stesso.
+    function isProprietarioFamiglia(uidFamiglia) {
+      return autenticato() && request.auth.uid == uidFamiglia;
+    }
+
+    // Vero se chi fa la richiesta è un docente con un collegamento
+    // in stato "accettato" verso questa famiglia.
+    function collegamentoAccettato(uidFamiglia) {
+      return autenticato() &&
+        exists(/databases/$(database)/documents/famiglie/$(uidFamiglia)/collegamenti/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/famiglie/$(uidFamiglia)/collegamenti/$(request.auth.uid)).data.stato == 'accettato';
+    }
+
+    // Chi può leggere i dati della famiglia: la famiglia stessa,
+    // oppure un docente accettato.
+    function puoLeggereFamiglia(uidFamiglia) {
+      return isProprietarioFamiglia(uidFamiglia) || collegamentoAccettato(uidFamiglia);
+    }
+
+    // ---------- utenti/{uid} : profilo con ruolo (famiglia | docente) ----------
+    match /utenti/{uid} {
+      // Ognuno legge solo il proprio profilo (non serve leggere quelli altrui:
+      // i nomi da mostrare in interfaccia sono duplicati dove servono).
+      allow read: if autenticato() && request.auth.uid == uid;
+
+      // Il profilo si crea una sola volta, alla scelta del ruolo.
+      allow create: if autenticato() && request.auth.uid == uid
+                    && request.resource.data.ruolo in ['famiglia', 'docente'];
+
+      // Il ruolo, una volta scelto, non è più modificabile da qui.
+      allow update, delete: if false;
+    }
+
+    // ---------- codici_condivisione/{codice} : mappa codice -> uid famiglia ----------
+    // Contiene SOLO l'abbinamento codice -> uid, nessun dato personale.
+    // È leggibile da chiunque sia autenticato: serve a un docente per
+    // "trovare" la famiglia a partire dal codice, senza poter leggere
+    // i suoi dati prima di essere accettato.
+    match /codici_condivisione/{codice} {
+      allow read: if autenticato();
+      // Solo la famiglia proprietaria del codice può creare la propria mappa.
+      allow create: if autenticato() && request.resource.data.uid_famiglia == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------- famiglie/{uidFamiglia} ----------
+    match /famiglie/{uidFamiglia} {
+      allow read: if puoLeggereFamiglia(uidFamiglia);
+      allow create, update: if isProprietarioFamiglia(uidFamiglia);
+      allow delete: if false;
+
+      // Voci giornaliere dei tre strumenti: solo la famiglia scrive;
+      // famiglia e docenti accettati possono leggere. Il docente non
+      // può MAI scrivere qui, in nessun caso.
+      match /voci_zaino/{dataGiorno} {
+        allow read: if puoLeggereFamiglia(uidFamiglia);
+        allow write: if isProprietarioFamiglia(uidFamiglia);
+      }
+      match /voci_emozioni/{dataGiorno} {
+        allow read: if puoLeggereFamiglia(uidFamiglia);
+        allow write: if isProprietarioFamiglia(uidFamiglia);
+      }
+      match /voci_sonno/{dataGiorno} {
+        allow read: if puoLeggereFamiglia(uidFamiglia);
+        allow write: if isProprietarioFamiglia(uidFamiglia);
+      }
+
+      // Collegamenti docente <-> famiglia. Id documento = uid del docente.
+      match /collegamenti/{uidDocente} {
+        // La famiglia vede tutte le richieste ricevute;
+        // ogni docente vede solo la propria (gli serve anche per le query
+        // "collection group" nella sua dashboard).
+        allow read: if isProprietarioFamiglia(uidFamiglia)
+                    || (autenticato() && request.auth.uid == uidDocente);
+
+        // Il docente crea la propria richiesta, sempre e solo in stato "in_attesa".
+        allow create: if autenticato() && request.auth.uid == uidDocente
+                      && request.resource.data.uid_docente == uidDocente
+                      && request.resource.data.stato == 'in_attesa';
+
+        // Solo la famiglia può accettare una richiesta (o comunque
+        // modificarne lo stato): il docente non si auto-accetta mai.
+        allow update: if isProprietarioFamiglia(uidFamiglia);
+
+        // Rifiuto o revoca: solo la famiglia elimina il collegamento.
+        // Appena il documento sparisce, il docente perde l'accesso.
+        allow delete: if isProprietarioFamiglia(uidFamiglia);
+      }
+
+      // Commenti: solo un docente accettato può scriverne di nuovi;
+      // la famiglia può solo leggerli, mai scriverli né modificarli.
+      match /commenti/{idCommento} {
+        allow read: if puoLeggereFamiglia(uidFamiglia);
+        allow create: if collegamentoAccettato(uidFamiglia)
+                      && request.resource.data.docente_uid == request.auth.uid;
+        allow update: if false;
+        // Un docente può eliminare solo un proprio commento.
+        allow delete: if autenticato() && resource.data.docente_uid == request.auth.uid;
+      }
+    }
+  }
+}
