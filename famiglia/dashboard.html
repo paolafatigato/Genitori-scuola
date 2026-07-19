@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../css/style.css?v=1">
+<link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body class="ruled-bg">
 <div class="app-shell">
@@ -63,7 +63,7 @@
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
 import { db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "/js/firebase-init.js";
-import { todayId, formatDateLunga, showToast } from "/js/utils.js";
+import { todayId, formatDateLunga, showToast, normalizzaStrumentiAttivi } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 document.getElementById("data-oggi").textContent = formatDateLunga(todayId()).replace(/^./, c => c.toUpperCase());
@@ -94,38 +94,50 @@ proteggiPagina("famiglia", (user, utente) => {
       getDoc(doc(db, "famiglie", user.uid, "voci_sonno", oggi))
     ]);
 
-    const voci = fam.voci_zaino_personalizzate || [];
-    let zainoTesto = "Non ancora iniziato";
+    let zainoTesto = "Non ancora preparato";
     if(zainoSnap.exists()){
-      const d = zainoSnap.data().voci || {};
-      const fatti = voci.filter(v => d[v]).length;
-      zainoTesto = `${fatti}/${voci.length} pronti`;
+      const d = zainoSnap.data();
+      const elencoBase = (d.elenco_del_giorno && d.elenco_del_giorno.length) ? d.elenco_del_giorno : Object.keys(d.voci || {});
+      const elenco = elencoBase.map(v => (typeof v === "string") ? { testo: v } : v);
+      if(elenco.length){
+        const fatti = elenco.filter(v => d.voci && d.voci[v.testo]).length;
+        zainoTesto = `${fatti}/${elenco.length} pronti`;
+      }
     }
 
     const EMOJI_LIVELLO = ["😞","🙁","😐","🙂","😄"];
     let emozioniTesto = "Non ancora compilato";
     if(emozioniSnap.exists()){
       const liv = emozioniSnap.data().livello;
-      emozioniTesto = `${EMOJI_LIVELLO[liv-1] || "•"} registrato`;
+      if(liv) emozioniTesto = `${EMOJI_LIVELLO[liv-1] || "•"} registrato`;
     }
 
     let sonnoTesto = "Non ancora compilato";
-    if(sonnoSnap.exists()) sonnoTesto = "Registrato";
+    if(sonnoSnap.exists() && typeof sonnoSnap.data().rispettata === "boolean") sonnoTesto = "Registrato";
 
-    document.getElementById("tool-grid").innerHTML = `
-      <a class="tool-card tool-card--zaino" href="/famiglia/zaino.html">
-        <div class="top"><span class="emoji-badge">🎒</span></div>
-        <h3>Zaino</h3><p class="stato">${zainoTesto}</p>
-      </a>
-      <a class="tool-card tool-card--emozioni" href="/famiglia/emozioni.html">
-        <div class="top"><span class="emoji-badge">🌡️</span></div>
-        <h3>Emozioni</h3><p class="stato">${emozioniTesto}</p>
-      </a>
-      <a class="tool-card tool-card--sonno" href="/famiglia/sonno.html">
-        <div class="top"><span class="emoji-badge">🌙</span></div>
-        <h3>Sonno</h3><p class="stato">${sonnoTesto}</p>
-      </a>
-    `;
+    const definizioni = {
+      zaino: { emoji: "🎒", nome: "Zaino", href: "/famiglia/zaino.html", stato: zainoTesto },
+      emozioni: { emoji: "🌡️", nome: "Emozioni", href: "/famiglia/emozioni.html", stato: emozioniTesto },
+      sonno: { emoji: "🌙", nome: "Sonno", href: "/famiglia/sonno.html", stato: sonnoTesto }
+    };
+
+    const attivi = normalizzaStrumentiAttivi(fam.strumenti_attivi);
+    const grid = document.getElementById("tool-grid");
+
+    if(!attivi.length){
+      grid.innerHTML = `<div class="empty-state"><span class="emoji">🧩</span>Nessuno strumento attivo. Puoi attivarne dalle Impostazioni.</div>`;
+      return;
+    }
+
+    grid.innerHTML = attivi.map(chiave => {
+      const d = definizioni[chiave];
+      if(!d) return "";
+      return `
+        <a class="tool-card tool-card--${chiave}" href="${d.href}">
+          <div class="top"><span class="emoji-badge">${d.emoji}</span></div>
+          <h3>${d.nome}</h3><p class="stato">${d.stato}</p>
+        </a>`;
+    }).join("");
   }
 
   const collegamentiRef = collection(db, "famiglie", user.uid, "collegamenti");

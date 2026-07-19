@@ -63,3 +63,25 @@ export function escapeHtml(str){
   div.textContent = str ?? "";
   return div.innerHTML;
 }
+// Elenco centrale degli strumenti disponibili: aggiungere qui un domani per
+// far comparire un nuovo strumento tra quelli attivabili dalle impostazioni.
+export const STRUMENTI_DISPONIBILI = [
+  { chiave: "zaino", nome: "Zaino", emoji: "🎒", href: "/famiglia/zaino.html" },
+  { chiave: "emozioni", nome: "Emozioni", emoji: "🌡️", href: "/famiglia/emozioni.html" },
+  { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "/famiglia/sonno.html" }
+];
+
+// Accetta sia il vecchio formato {zaino:true,...} sia il nuovo array ordinato
+// e restituisce sempre un array di chiavi attive, nell'ordine scelto.
+export function normalizzaStrumentiAttivi(raw){
+  const chiaviValide = STRUMENTI_DISPONIBILI.map(s => s.chiave);
+  if(Array.isArray(raw)){
+    const filtrato = raw.filter(c => chiaviValide.includes(c));
+    return filtrato.length ? filtrato : chiaviValide;
+  }
+  if(raw && typeof raw === "object"){
+    const attivi = chiaviValide.filter(c => raw[c]);
+    return attivi.length ? attivi : chiaviValide;
+  }
+  return chiaviValide;
+}

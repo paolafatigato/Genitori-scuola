@@ -535,3 +535,98 @@ details.editor-modello[open] summary::after{ transform:rotate(270deg); }
 @media (prefers-reduced-motion: reduce){
   *{ transition:none !important; animation:none !important; }
 }
+/* Gruppi per materia nella checklist di oggi */
+.materia-header{
+  display:flex; align-items:center; gap:8px;
+  font-weight:700; font-size:.95rem;
+  margin:16px 0 2px;
+}
+.materia-header:first-child{ margin-top:0; }
+.materia-dot{
+  width:13px; height:13px; border-radius:50%;
+  border:2px solid var(--ink); flex-shrink:0; display:inline-block;
+}
+.materia-orario{
+  margin-left:auto; font-size:.76rem; font-weight:600; color:var(--ink-soft);
+}
+
+/* Editor orario settimanale: righe slot e colori materie */
+.slot-row, .colore-row{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 2px; border-bottom:1px solid var(--rule-soft);
+}
+.slot-row:last-child, .colore-row:last-child{ border-bottom:none; }
+.slot-row .slot-info{ flex:1; }
+.slot-row .slot-orario{ font-size:.8rem; color:var(--ink-soft); }
+input[type=color].color-input{
+  width:42px; height:36px; padding:2px; border-radius:8px;
+  border:2px solid var(--rule); cursor:pointer; flex-shrink:0;
+}
+.form-riga{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.form-riga input[type=text], .form-riga input[type=time], .form-riga input[type=date]{
+  margin-bottom:0; flex:1; min-width:110px;
+}/* Colpo d'occhio settimanale (sola lettura) */
+.giorno-riepilogo{ padding:10px 4px; border-bottom:1px solid var(--rule-soft); }
+.giorno-riepilogo:last-child{ border-bottom:none; }
+.giorno-riepilogo.evidenziato{ background:var(--paper-alt); border-radius:var(--radius-s); padding:10px 10px; }
+.giorno-riepilogo strong{ display:block; margin-bottom:6px; font-size:.9rem; }
+.chips-riga{ display:flex; flex-wrap:wrap; gap:6px; }
+.chip-materia{
+  display:inline-flex; align-items:center; gap:5px;
+  border:2px solid var(--rule); border-radius:999px;
+  padding:4px 10px; font-size:.78rem; font-weight:600;
+}
+.chip-materia em{ font-style:normal; color:var(--ink-soft); margin-left:2px; }
+
+/* Blocchi materia annidati nell'editor "Organizza materie e orario" */
+details.materia-block{
+  border:2px solid var(--rule); background:var(--paper-alt); box-shadow:none;
+  border-radius:var(--radius-s); padding:2px 14px 14px; margin-bottom:10px;
+}
+details.materia-block summary{
+  font-family:var(--font-body); font-weight:700; font-size:1rem;
+  padding:12px 0; display:flex; align-items:center; gap:8px;
+}
+details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro le righe degli slot orario generati */
+.slot-row .slot-orario{ min-width:92px; flex-shrink:0; }
+.slot-row input[type=text]{ flex:1; margin-bottom:0; }/* Modali: orario e materie */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(32,33,31,.55);
+  display:none; align-items:flex-end; justify-content:center;
+  z-index:100; padding:0;
+}
+.modal-overlay.aperto{ display:flex; }
+.modal-card{
+  background:var(--paper); width:100%; max-width:560px;
+  max-height:88vh; overflow-y:auto;
+  border-radius:var(--radius-l) var(--radius-l) 0 0;
+  padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+  box-shadow:var(--shadow-pop);
+}
+@media (min-width:640px){
+  .modal-overlay{ align-items:center; }
+  .modal-card{ border-radius:var(--radius-l); max-height:82vh; }
+}
+.modal-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px; gap:10px;
+}
+.modal-header h2{ margin:0; font-size:1.6rem; }
+.modal-close{
+  background:none; border:none; font-size:1.4rem; cursor:pointer;
+  color:var(--ink-soft); padding:4px 8px; line-height:1; flex-shrink:0;
+}/* Variante del tab "materia" con pulsanti azione (usata da Zaino) */
+.subject-tab--with-actions{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap; width:calc(100% - 6px); box-sizing:border-box;
+}
+.tab-azioni{ display:flex; gap:6px; }
+.tab-azioni button{
+  width:38px; height:38px; border-radius:50%;
+  background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.6);
+  color:var(--white); font-size:1.05rem; cursor:pointer; padding:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.tab-azioni button.evidenziato{
+  background:var(--accento-600); border-color:var(--accento-600);
+}

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=1">
+<link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body class="ruled-bg">
 <div class="app-shell">
@@ -27,29 +27,37 @@
     </header>
 
     <main class="page">
-      <div class="subject-tab subject-tab--zaino"><span class="emoji">🎒</span> Zaino <span id="etichetta-oggi" style="font-size:1.1rem; opacity:.85;"></span></div>
+      <div class="subject-tab subject-tab--zaino subject-tab--with-actions">
+        <span><span class="emoji">🎒</span> Zaino</span>
+        <span class="tab-azioni">
+          <button type="button" id="btn-apri-orario" title="Imposta orario">🗓️</button>
+          <button type="button" id="btn-apri-materie" title="Imposta materie">📚</button>
+          <button type="button" id="btn-apri-impostazioni" title="Impostazioni zaino">⚙️</button>
+        </span>
+      </div>
       <div class="notebook-card">
-        <p class="helper-text">Prova questo per una settimana: spunta insieme quello che è pronto per domani.</p>
-        <div id="lista-zaino"><div class="spinner-wrap">Un attimo…</div></div>
-
-        <hr class="divider">
-        <label for="nuova-extra">Aggiungi qualcosa solo per oggi (gita, materiale extra…)</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="nuova-extra" placeholder="Es. Costume per nuoto" style="margin-bottom:0;">
-          <button class="btn btn-sm btn-primary" id="btn-aggiungi-extra" style="flex-shrink:0;">Aggiungi</button>
-        </div>
+        <p class="helper-text">Prova questo per una settimana: prepara lo zaino la sera prima, per il giorno dopo.</p>
+        <h3 style="margin-bottom:10px;">Per domani — <span id="etichetta-domani"></span></h3>
+        <div id="lista-zaino-raggruppata"><div class="spinner-wrap">Un attimo…</div></div>
       </div>
 
-      <details class="editor-modello" id="editor-modello">
-        <summary>✏️ Personalizza il modello settimanale</summary>
-        <p class="helper-text">Qui decidi cosa serve di solito ogni giorno della settimana (es. il libro di matematica solo il martedì). Le aggiunte "solo per oggi" qui sopra restano invece una tantum e non modificano il modello.</p>
-        <div class="day-pills" id="selettore-giorni"></div>
-        <ul class="history-list" id="lista-voci-modello" style="margin-bottom:14px;"></ul>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="nuova-voce-modello" placeholder="Nuova voce per questo giorno…" style="margin-bottom:0;">
-          <button class="btn btn-sm" id="btn-aggiungi-voce-modello" style="flex-shrink:0;">Aggiungi al modello</button>
+      <div class="section-title"><h2>➕ Aggiungi una tantum</h2></div>
+      <div class="card-plain">
+        <p class="helper-text">Per una gita o un carico extra, anche programmato con giorni di anticipo.</p>
+        <div class="form-riga">
+          <input type="text" id="extra-testo" placeholder="Cosa serve…">
+          <select id="extra-materia"><option value="">Nessuna materia</option></select>
+          <input type="date" id="extra-data">
         </div>
-      </details>
+        <button class="btn btn-sm btn-primary" id="btn-aggiungi-extra">Aggiungi</button>
+
+        <hr class="divider">
+        <p class="streak-note">Altre aggiunte già programmate:</p>
+        <div id="prossime-aggiunte"><div class="empty-state">Nessuna per ora.</div></div>
+      </div>
+
+      <div class="section-title"><h2>🗓️ Colpo d'occhio settimanale</h2></div>
+      <div class="card-plain" id="colpo-docchio"><div class="spinner-wrap">Un attimo…</div></div>
 
       <div class="section-title"><h2>📖 Storico (ultimi 30 giorni)</h2></div>
       <div class="card-plain">
@@ -60,160 +68,605 @@
       </div>
     </main>
   </div>
+
+  <datalist id="elenco-materie"></datalist>
+
+  <!-- Modale: orario settimanale -->
+  <div class="modal-overlay" id="modal-orario">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>🗓️ Orario settimanale</h2>
+        <button class="modal-close" data-chiudi-modal="modal-orario">✕</button>
+      </div>
+      <p class="helper-text">Per ogni giorno: a che ora si inizia, a che ora si esce, e quante ore ci sono. La prima volta che generi un orario, viene applicato come base a tutti i giorni: poi modifichi solo quelli diversi.</p>
+      <div class="day-pills" id="pills-orario"></div>
+      <div class="form-riga">
+        <input type="time" id="orario-inizio">
+        <input type="time" id="orario-fine">
+        <input type="number" id="orario-numero-ore" min="1" max="12" step="1" placeholder="Quante ore">
+      </div>
+      <button class="btn btn-sm btn-primary" id="btn-genera-slot">Genera/aggiorna le ore</button>
+      <div id="lista-slot-giorno" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- Modale: materie e materiali -->
+  <div class="modal-overlay" id="modal-materie">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📚 Materie e materiali</h2>
+        <button class="modal-close" data-chiudi-modal="modal-materie">✕</button>
+      </div>
+      <div id="lista-materie"></div>
+      <div class="form-riga"><input type="text" id="nuova-materia" placeholder="Nome nuova materia, es. Matematica"></div>
+      <button class="btn btn-sm btn-primary" id="btn-aggiungi-materia">Aggiungi materia</button>
+    </div>
+  </div>
+
+  <!-- Modale: impostazioni zaino (voci di ogni giorno) -->
+  <div class="modal-overlay" id="modal-impostazioni">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>⚙️ Impostazioni zaino</h2>
+        <button class="modal-close" data-chiudi-modal="modal-impostazioni">✕</button>
+      </div>
+      <p class="streak-note">📌 Materiali di ogni giorno (indipendenti dalla materia)</p>
+      <ul class="history-list" id="lista-generali" style="margin-bottom:12px;"></ul>
+      <div class="form-riga"><input type="text" id="generale-testo" placeholder="Es. Diario firmato"></div>
+      <button class="btn btn-sm" id="btn-aggiungi-generale">Aggiungi</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
-import { proteggiPagina, esci, GIORNI_SETTIMANA, VOCI_ZAINO_DEFAULT } from "/js/auth.js";
+import { proteggiPagina, esci, GIORNI_SETTIMANA } from "/js/auth.js";
 import { db, doc, getDoc, setDoc, updateDoc, onSnapshot } from "/js/firebase-init.js";
 import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 
+// ---------- Apertura/chiusura modali (indipendente dai dati utente) ----------
+function apriModal(id){
+  document.getElementById(id).classList.add("aperto");
+  document.body.style.overflow = "hidden";
+}
+function chiudiModal(id){
+  document.getElementById(id).classList.remove("aperto");
+  document.body.style.overflow = "";
+}
+document.querySelectorAll("[data-chiudi-modal]").forEach(b => b.addEventListener("click", () => chiudiModal(b.dataset.chiudiModal)));
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+  overlay.addEventListener("click", (e) => { if(e.target === overlay) chiudiModal(overlay.id); });
+});
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape") document.querySelectorAll(".modal-overlay.aperto").forEach(o => chiudiModal(o.id));
+});
+document.getElementById("btn-apri-orario").addEventListener("click", () => apriModal("modal-orario"));
+document.getElementById("btn-apri-materie").addEventListener("click", () => apriModal("modal-materie"));
+document.getElementById("btn-apri-impostazioni").addEventListener("click", () => apriModal("modal-impostazioni"));
+
 const GIORNI_LABEL = { lunedi:"Lunedì", martedi:"Martedì", mercoledi:"Mercoledì", giovedi:"Giovedì", venerdi:"Venerdì", sabato:"Sabato", domenica:"Domenica" };
 const GIORNI_LABEL_BREVE = { lunedi:"Lun", martedi:"Mar", mercoledi:"Mer", giovedi:"Gio", venerdi:"Ven", sabato:"Sab", domenica:"Dom" };
+const COLORE_DEFAULT = "#d9dadc";
 
 function chiaveGiornoDaData(d){
   const mappa = ["domenica","lunedi","martedi","mercoledi","giovedi","venerdi","sabato"];
   return mappa[d.getDay()];
 }
-const oggiChiave = chiaveGiornoDaData(new Date());
-document.getElementById("etichetta-oggi").textContent = `— ${GIORNI_LABEL[oggiChiave]}`;
 
-let giornoEditor = oggiChiave;
+const domaniDate = new Date();
+domaniDate.setDate(domaniDate.getDate() + 1);
+const domaniChiave = chiaveGiornoDaData(domaniDate);
+const domaniId = todayId(1);
+
+document.getElementById("etichetta-domani").textContent = `${GIORNI_LABEL[domaniChiave]} ${formatDateBreve(domaniId)}`;
+document.getElementById("extra-data").min = todayId();
+document.getElementById("extra-data").value = domaniId;
+
+function normalizzaVoce(v){ return (typeof v === "string") ? { testo: v, materia: null } : v; }
+function normalizzaLista(arr){ return (arr || []).map(normalizzaVoce); }
+function idSicuro(testo){ return encodeURIComponent(testo); }
+
+function minutiAOra(min){
+  const h = Math.floor(min / 60).toString().padStart(2, "0");
+  const m = Math.round(min % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+function calcolaSlots(giornoObj){
+  if(!giornoObj || !giornoObj.ora_inizio || !giornoObj.ora_fine || !giornoObj.numero_ore) return [];
+  const [ih, im] = giornoObj.ora_inizio.split(":").map(Number);
+  const [fh, fm] = giornoObj.ora_fine.split(":").map(Number);
+  const inizioMin = ih * 60 + im;
+  const fineMin = fh * 60 + fm;
+  const totale = fineMin - inizioMin;
+  if(totale <= 0) return [];
+  const durata = totale / giornoObj.numero_ore;
+  const slots = [];
+  for(let i = 0; i < giornoObj.numero_ore; i++){
+    slots.push({ ora_inizio: minutiAOra(inizioMin + durata * i), ora_fine: minutiAOra(inizioMin + durata * (i + 1)) });
+  }
+  return slots;
+}
+
+let giornoOrario = domaniChiave;
+
+function renderPills(container, giornoAttivo, onScegli){
+  container.innerHTML = GIORNI_SETTIMANA.map(g => `
+    <button type="button" data-giorno="${g}" class="${g === giornoAttivo ? "active" : ""} ${g === domaniChiave ? "oggi" : ""}">
+      ${GIORNI_LABEL_BREVE[g]}
+    </button>`).join("");
+  container.querySelectorAll("button").forEach(b => b.addEventListener("click", () => onScegli(b.dataset.giorno)));
+}
 
 proteggiPagina("famiglia", (user) => {
-  const oggiId = todayId();
   const famRef = doc(db, "famiglie", user.uid);
-  const oggiRef = doc(db, "famiglie", user.uid, "voci_zaino", oggiId);
+  const domaniRef = doc(db, "famiglie", user.uid, "voci_zaino", domaniId);
 
   let famData = null;
-  let oggiData = {};
+  let domaniData = {};
+
+  // ---------- Migrazioni dai modelli precedenti ----------
+  async function migraVecchioSeServe(dati){
+    const materieVecchie = dati.materie || {};
+    const giaIntermedio = Object.keys(materieVecchie).length > 0 && Object.values(materieVecchie).every(m => m && Array.isArray(m.giorni));
+    const nienteDaMigrare = Object.keys(materieVecchie).length === 0 && !dati.orario_settimanale && !dati.checklist_zaino_settimanale;
+    if(giaIntermedio || nienteDaMigrare) return false;
+
+    const nuoveMaterie = {};
+    Object.entries(materieVecchie).forEach(([nome, val]) => {
+      nuoveMaterie[nome] = { colore: val?.colore || null, giorni: [], materiali: val?.materiali || [] };
+    });
+    const orario = dati.orario_settimanale || {};
+    GIORNI_SETTIMANA.forEach(g => {
+      (orario[g] || []).forEach(slot => {
+        if(!nuoveMaterie[slot.materia]) nuoveMaterie[slot.materia] = { colore: null, giorni: [], materiali: [] };
+        nuoveMaterie[slot.materia].giorni.push({ giorno: g, ora_inizio: slot.ora_inizio, ora_fine: slot.ora_fine });
+      });
+    });
+    const checklist = dati.checklist_zaino_settimanale || {};
+    const generaliSet = new Set(dati.checklist_generale || []);
+    GIORNI_SETTIMANA.forEach(g => {
+      normalizzaLista(checklist[g]).forEach(v => {
+        if(v.materia){
+          if(!nuoveMaterie[v.materia]) nuoveMaterie[v.materia] = { colore: null, giorni: [], materiali: [] };
+          if(!nuoveMaterie[v.materia].materiali.includes(v.testo)) nuoveMaterie[v.materia].materiali.push(v.testo);
+        } else if(v.testo){
+          generaliSet.add(v.testo);
+        }
+      });
+    });
+    await setDoc(famRef, { materie: nuoveMaterie, checklist_generale: Array.from(generaliSet) }, { merge: true });
+    return true;
+  }
+
+  async function migraAOrarioGiorniSeServe(dati){
+    if(dati.orario_giorni) return false;
+    const materieVecchie = dati.materie || {};
+    const haGiorniVecchi = Object.values(materieVecchie).some(m => m && Array.isArray(m.giorni) && m.giorni.length);
+    if(!haGiorniVecchi) return false;
+
+    const orarioGiorni = {};
+    GIORNI_SETTIMANA.forEach(g => {
+      const occorrenze = [];
+      Object.entries(materieVecchie).forEach(([nome, m]) => {
+        (m.giorni || []).forEach(occ => { if(occ.giorno === g) occorrenze.push({ nome, ...occ }); });
+      });
+      if(occorrenze.length){
+        occorrenze.sort((a, b) => a.ora_inizio.localeCompare(b.ora_inizio));
+        orarioGiorni[g] = {
+          ora_inizio: occorrenze[0].ora_inizio,
+          ora_fine: occorrenze[occorrenze.length - 1].ora_fine,
+          numero_ore: occorrenze.length,
+          materie: occorrenze.map(o => o.nome)
+        };
+      }
+    });
+    if(Object.keys(orarioGiorni).length){
+      await setDoc(famRef, { orario_giorni: orarioGiorni }, { merge: true });
+      return true;
+    }
+    return false;
+  }
 
   onSnapshot(famRef, async (snap) => {
     const dati = snap.data();
     if(!dati) return;
 
-    // Migrazione automatica: se la famiglia ha ancora il vecchio modello
-    // "unica lista", o non ne ha ancora nessuno, creo il modello per
-    // giorno della settimana la prima volta che serve.
-    if(!dati.checklist_zaino_settimanale){
-      const base = (dati.voci_zaino_personalizzate && dati.voci_zaino_personalizzate.length)
-        ? dati.voci_zaino_personalizzate
-        : VOCI_ZAINO_DEFAULT;
-      const modello = {};
-      GIORNI_SETTIMANA.forEach(g => modello[g] = [...base]);
-      await setDoc(famRef, { checklist_zaino_settimanale: modello }, { merge: true });
-      return; // questo onSnapshot verrà richiamato con i dati aggiornati
-    }
+    if(await migraVecchioSeServe(dati)) return;
+    if(await migraAOrarioGiorniSeServe(dati)) return;
 
     famData = dati;
-    renderEditorModello();
-    sincronizzaERendiOggi();
+    aggiornaDatalist();
+    aggiornaSelectMaterie();
+    aggiornaBottoneOrario();
+    renderColpoDocchio();
+    renderEditorOrario();
+    renderGenerali();
+    renderMaterie();
+    sincronizzaERendiDomani();
   });
 
-  onSnapshot(oggiRef, (snap) => {
-    oggiData = snap.exists() ? snap.data() : {};
-    sincronizzaERendiOggi();
+  onSnapshot(domaniRef, (snap) => {
+    domaniData = snap.exists() ? snap.data() : {};
+    sincronizzaERendiDomani();
   });
 
-  function listaOggiCalcolata(){
-    const template = (famData && famData.checklist_zaino_settimanale && famData.checklist_zaino_settimanale[oggiChiave]) || [];
-    const extra = oggiData.extra || [];
-    const combinati = [...template];
-    extra.forEach(e => { if(!combinati.includes(e)) combinati.push(e); });
+  function aggiornaBottoneOrario(){
+    const haOrario = Object.keys(famData.orario_giorni || {}).length > 0;
+    const btn = document.getElementById("btn-apri-orario");
+    btn.classList.toggle("evidenziato", !haOrario);
+    btn.title = haOrario ? "Modifica orario" : "Crea l'orario settimanale";
+  }
+
+  function aggiornaDatalist(){
+    document.getElementById("elenco-materie").innerHTML =
+      Object.keys(famData.materie || {}).sort().map(m => `<option value="${m}">`).join("");
+  }
+
+  function aggiornaSelectMaterie(){
+    const sel = document.getElementById("extra-materia");
+    const scelta = sel.value;
+    const nomi = Object.keys(famData.materie || {}).sort();
+    sel.innerHTML = `<option value="">Nessuna materia</option>` + nomi.map(n => `<option value="${n}">${n}</option>`).join("");
+    if(nomi.includes(scelta)) sel.value = scelta;
+  }
+
+  async function assicuraMateria(nome){
+    if(!nome) return;
+    if(!famData.materie || !(nome in famData.materie)){
+      await updateDoc(famRef, { [`materie.${nome}`]: { colore: null, materiali: [] } });
+    }
+  }
+
+  // ---------- Checklist di domani, raggruppata per materia ----------
+  function listaDomaniCalcolata(){
+    const generali = (famData.checklist_generale || []).map(t => ({ testo: t, materia: null }));
+    const giornoObj = famData.orario_giorni?.[domaniChiave];
+    const perMateria = [];
+    if(giornoObj){
+      const materieOggi = [...new Set((giornoObj.materie || []).filter(Boolean))];
+      materieOggi.forEach(nome => {
+        (famData.materie?.[nome]?.materiali || []).forEach(t => perMateria.push({ testo: t, materia: nome }));
+      });
+    }
+    const extra = normalizzaLista(domaniData.extra);
+    const combinati = [...generali, ...perMateria];
+    extra.forEach(e => { if(!combinati.some(c => c.testo === e.testo)) combinati.push(e); });
     return combinati;
   }
 
-  function sincronizzaERendiOggi(){
+  function sincronizzaERendiDomani(){
     if(!famData) return;
-    const combinati = listaOggiCalcolata();
-    const attuali = oggiData.elenco_del_giorno || [];
+    const combinati = listaDomaniCalcolata();
+    const attuali = normalizzaLista(domaniData.elenco_del_giorno);
     if(JSON.stringify(attuali) !== JSON.stringify(combinati)){
-      setDoc(oggiRef, { elenco_del_giorno: combinati }, { merge: true });
+      setDoc(domaniRef, { elenco_del_giorno: combinati }, { merge: true });
     }
-    renderChecklistOggi(combinati);
+    renderChecklistDomani(combinati);
   }
 
-  function renderChecklistOggi(elenco){
-    const voci = oggiData.voci || {};
-    const extra = oggiData.extra || [];
+  function orarioMappaDomani(){
+    const giornoObj = famData.orario_giorni?.[domaniChiave];
+    const mappa = {};
+    if(giornoObj){
+      calcolaSlots(giornoObj).forEach((s, i) => {
+        const nome = giornoObj.materie?.[i];
+        if(nome && !mappa[nome]) mappa[nome] = s;
+      });
+    }
+    return mappa;
+  }
 
-    document.getElementById("lista-zaino").innerHTML = elenco.length ? elenco.map((v, i) => {
-      const eExtra = extra.includes(v);
-      return `
-        <div class="check-row">
-          <input type="checkbox" id="voce-${i}" ${voci[v] ? "checked" : ""} data-voce="${encodeURIComponent(v)}">
-          <label for="voce-${i}">${v}${eExtra ? '<span class="tag-extra">solo oggi</span>' : ""}</label>
-          ${eExtra ? `<button class="btn btn-sm btn-ghost" data-rimuovi-extra="${encodeURIComponent(v)}" title="Rimuovi">✕</button>` : ""}
-        </div>`;
-    }).join("") : `<div class="empty-state"><span class="emoji">🎒</span>Nessuna voce per oggi. Aggiungine una qui sotto o personalizza il modello.</div>`;
+  function raggruppaPerMateria(elenco){
+    const orarioMap = orarioMappaDomani();
+    const gruppi = {};
+    elenco.forEach(it => {
+      const key = it.materia || "";
+      (gruppi[key] ||= []).push(it);
+    });
+    const chiaviConMateria = Object.keys(gruppi).filter(k => k !== "").sort((a, b) => {
+      const oa = orarioMap[a]?.ora_inizio || "99:99";
+      const ob = orarioMap[b]?.ora_inizio || "99:99";
+      return oa.localeCompare(ob);
+    });
+    const chiavi = gruppi[""] ? ["", ...chiaviConMateria] : chiaviConMateria;
+    return chiavi.map(k => ({ materia: k, orario: orarioMap[k] || null, items: gruppi[k] }));
+  }
 
-    document.querySelectorAll("#lista-zaino input[type=checkbox]").forEach(cb => {
+  function renderChecklistDomani(elenco){
+    const cont = document.getElementById("lista-zaino-raggruppata");
+    if(!elenco.length){
+      cont.innerHTML = `<div class="empty-state"><span class="emoji">🎒</span>Nessuna voce per domani. Aggiungine una qui sotto o organizza l'orario.</div>`;
+      return;
+    }
+    const voci = domaniData.voci || {};
+    const extraTesti = normalizzaLista(domaniData.extra).map(e => e.testo);
+    const gruppi = raggruppaPerMateria(elenco);
+    const colori = famData.materie || {};
+
+    cont.innerHTML = gruppi.map(g => {
+      const intestazione = g.materia
+        ? `<div class="materia-header">
+             <span class="materia-dot" style="background:${colori[g.materia]?.colore || COLORE_DEFAULT};"></span>
+             ${g.materia}
+             ${g.orario ? `<span class="materia-orario">${g.orario.ora_inizio}–${g.orario.ora_fine}</span>` : ""}
+           </div>`
+        : `<div class="materia-header"><span class="materia-dot" style="background:${COLORE_DEFAULT};"></span>Ogni giorno</div>`;
+
+      const righe = g.items.map(it => {
+        const eExtra = extraTesti.includes(it.testo);
+        const id = idSicuro(it.testo);
+        return `
+          <div class="check-row">
+            <input type="checkbox" id="voce-${id}" ${voci[it.testo] ? "checked" : ""} data-voce="${id}">
+            <label for="voce-${id}">${it.testo}${eExtra ? '<span class="tag-extra">una tantum</span>' : ""}</label>
+            ${eExtra ? `<button class="btn btn-sm btn-ghost" data-rimuovi-extra="${id}" title="Rimuovi">✕</button>` : ""}
+          </div>`;
+      }).join("");
+      return intestazione + righe;
+    }).join("");
+
+    cont.querySelectorAll("input[type=checkbox]").forEach(cb => {
       cb.addEventListener("change", async () => {
         const voce = decodeURIComponent(cb.dataset.voce);
-        await setDoc(oggiRef, { voci: { [voce]: cb.checked }, completato_il: new Date().toISOString() }, { merge: true });
+        await setDoc(domaniRef, { voci: { [voce]: cb.checked }, completato_il: new Date().toISOString() }, { merge: true });
       });
     });
-    document.querySelectorAll("[data-rimuovi-extra]").forEach(b => {
+    cont.querySelectorAll("[data-rimuovi-extra]").forEach(b => {
       b.addEventListener("click", async () => {
         const voce = decodeURIComponent(b.dataset.rimuoviExtra);
-        const nuoveExtra = (oggiData.extra || []).filter(v => v !== voce);
-        await setDoc(oggiRef, { extra: nuoveExtra }, { merge: true });
+        const nuoveExtra = normalizzaLista(domaniData.extra).filter(v => v.testo !== voce);
+        await setDoc(domaniRef, { extra: nuoveExtra }, { merge: true });
       });
     });
   }
 
+  // ---------- Aggiunte una tantum ----------
   document.getElementById("btn-aggiungi-extra").addEventListener("click", async () => {
-    const input = document.getElementById("nuova-extra");
-    const valore = input.value.trim();
-    if(!valore) return;
-    const attuali = oggiData.extra || [];
-    if(attuali.includes(valore)){ showToast("C'è già."); return; }
-    await setDoc(oggiRef, { extra: [...attuali, valore] }, { merge: true });
-    input.value = "";
-    showToast("Aggiunto per oggi ✅");
+    const testo = document.getElementById("extra-testo").value.trim();
+    const materia = document.getElementById("extra-materia").value || null;
+    const dataScelta = document.getElementById("extra-data").value || domaniId;
+    if(!testo) return;
+
+    const ref = doc(db, "famiglie", user.uid, "voci_zaino", dataScelta);
+    const snap = await getDoc(ref);
+    const attuali = normalizzaLista(snap.exists() ? snap.data().extra : []);
+    if(attuali.some(e => e.testo === testo)){ showToast("C'è già per quel giorno."); return; }
+
+    await setDoc(ref, { extra: [...attuali, { testo, materia }] }, { merge: true });
+    document.getElementById("extra-testo").value = "";
+    document.getElementById("extra-materia").value = "";
+    document.getElementById("extra-data").value = domaniId;
+    showToast(dataScelta === domaniId ? "Aggiunto per domani ✅" : `Aggiunto per il ${formatDateBreve(dataScelta)} ✅`);
+    caricaProssimeAggiunte();
   });
 
-  // ---- Editor del modello settimanale ----
-  function renderEditorModello(){
-    const pills = document.getElementById("selettore-giorni");
-    pills.innerHTML = GIORNI_SETTIMANA.map(g => `
-      <button type="button" data-giorno="${g}" class="${g === giornoEditor ? "active" : ""} ${g === oggiChiave ? "oggi" : ""}">
-        ${GIORNI_LABEL_BREVE[g]}
-      </button>`).join("");
-    pills.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-      giornoEditor = b.dataset.giorno;
-      renderEditorModello();
-    }));
+  async function caricaProssimeAggiunte(){
+    const giorni = Array.from({ length: 13 }, (_, i) => todayId(i + 2));
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_zaino", g))));
+    const righe = [];
+    risultati.forEach((snap, idx) => {
+      if(!snap.exists()) return;
+      normalizzaLista(snap.data().extra).forEach(e => righe.push({ g: giorni[idx], ...e }));
+    });
+    const cont = document.getElementById("prossime-aggiunte");
+    cont.innerHTML = righe.length ? righe.map(r => `
+      <div class="link-row">
+        <span class="chi">${formatDateBreve(r.g)} — ${r.testo}${r.materia ? `<span class="tag-extra">${r.materia}</span>` : ""}</span>
+        <button class="btn btn-sm btn-ghost" data-rimuovi-prossima="${r.g}::${idSicuro(r.testo)}">Rimuovi</button>
+      </div>`).join("") : `<div class="empty-state">Nessuna per ora.</div>`;
 
-    const voci = (famData.checklist_zaino_settimanale && famData.checklist_zaino_settimanale[giornoEditor]) || [];
-    document.getElementById("lista-voci-modello").innerHTML = voci.length ? voci.map(v => `
-      <li class="riga-voce-modello">
-        <span>${v}</span>
-        <button class="btn btn-sm btn-ghost" data-rimuovi-modello="${encodeURIComponent(v)}">Rimuovi</button>
-      </li>`).join("") : `<div class="empty-state">Nessuna voce per ${GIORNI_LABEL[giornoEditor]}.</div>`;
-
-    document.querySelectorAll("[data-rimuovi-modello]").forEach(b => {
+    cont.querySelectorAll("[data-rimuovi-prossima]").forEach(b => {
       b.addEventListener("click", async () => {
-        const voce = decodeURIComponent(b.dataset.rimuoviModello);
-        const attuali = famData.checklist_zaino_settimanale[giornoEditor] || [];
-        await updateDoc(famRef, { [`checklist_zaino_settimanale.${giornoEditor}`]: attuali.filter(v => v !== voce) });
+        const [dataId, testoCod] = b.dataset.rimuoviProssima.split("::");
+        const testo = decodeURIComponent(testoCod);
+        const ref = doc(db, "famiglie", user.uid, "voci_zaino", dataId);
+        const snap = await getDoc(ref);
+        const attuali = normalizzaLista(snap.exists() ? snap.data().extra : []);
+        await setDoc(ref, { extra: attuali.filter(e => e.testo !== testo) }, { merge: true });
+        caricaProssimeAggiunte();
+      });
+    });
+  }
+  caricaProssimeAggiunte();
+
+  // ---------- Colpo d'occhio settimanale ----------
+  function renderColpoDocchio(){
+    const cont = document.getElementById("colpo-docchio");
+    cont.innerHTML = GIORNI_SETTIMANA.map(g => {
+      const giornoObj = famData.orario_giorni?.[g];
+      let chips = `<span class="helper-text" style="margin:0;">Orario non impostato.</span>`;
+      if(giornoObj){
+        const slots = calcolaSlots(giornoObj);
+        const conMateria = slots.map((s, i) => ({ nome: giornoObj.materie?.[i], ...s })).filter(x => x.nome);
+        chips = conMateria.length
+          ? conMateria.map(o => `<span class="chip-materia"><span class="materia-dot" style="background:${famData.materie?.[o.nome]?.colore || COLORE_DEFAULT};"></span>${o.nome} <em>${o.ora_inizio}–${o.ora_fine}</em></span>`).join("")
+          : `<span class="helper-text" style="margin:0;">Nessuna materia inserita negli slot.</span>`;
+      }
+      return `<div class="giorno-riepilogo ${g === domaniChiave ? "evidenziato" : ""}"><strong>${GIORNI_LABEL[g]}</strong><div class="chips-riga">${chips}</div></div>`;
+    }).join("");
+  }
+
+  // ---------- Editor orario settimanale (dentro la modale) ----------
+  function renderEditorOrario(){
+    renderPills(document.getElementById("pills-orario"), giornoOrario, (g) => { giornoOrario = g; renderEditorOrario(); });
+
+    const giornoObj = famData.orario_giorni?.[giornoOrario];
+    document.getElementById("orario-inizio").value = giornoObj?.ora_inizio || "08:00";
+    document.getElementById("orario-fine").value = giornoObj?.ora_fine || "13:00";
+    document.getElementById("orario-numero-ore").value = giornoObj?.numero_ore || 5;
+
+    const cont = document.getElementById("lista-slot-giorno");
+    if(!giornoObj){
+      cont.innerHTML = `<div class="empty-state">Imposta inizio, fine e numero di ore per ${GIORNI_LABEL[giornoOrario]}, poi genera le ore.</div>`;
+      return;
+    }
+    const slots = calcolaSlots(giornoObj);
+    cont.innerHTML = slots.map((s, i) => `
+      <div class="slot-row">
+        <span class="slot-orario">${s.ora_inizio}–${s.ora_fine}</span>
+        <input type="text" class="slot-materia-input" data-indice="${i}" value="${giornoObj.materie?.[i] || ""}" placeholder="Materia…" list="elenco-materie">
+      </div>`).join("");
+
+    cont.querySelectorAll(".slot-materia-input").forEach(inp => {
+      inp.addEventListener("change", async () => {
+        const i = Number(inp.dataset.indice);
+        const nome = inp.value.trim();
+        if(nome) await assicuraMateria(nome);
+        const attuali = [...(famData.orario_giorni[giornoOrario].materie || [])];
+        attuali[i] = nome;
+        await updateDoc(famRef, { [`orario_giorni.${giornoOrario}.materie`]: attuali });
       });
     });
   }
 
-  document.getElementById("btn-aggiungi-voce-modello").addEventListener("click", async () => {
-    const input = document.getElementById("nuova-voce-modello");
-    const valore = input.value.trim();
-    if(!valore) return;
-    const attuali = (famData.checklist_zaino_settimanale && famData.checklist_zaino_settimanale[giornoEditor]) || [];
-    if(attuali.includes(valore)){ showToast("C'è già nel modello."); input.value = ""; return; }
-    await updateDoc(famRef, { [`checklist_zaino_settimanale.${giornoEditor}`]: [...attuali, valore] });
-    input.value = "";
-    showToast(`Aggiunto al modello del ${GIORNI_LABEL[giornoEditor]} ✅`);
+  document.getElementById("btn-genera-slot").addEventListener("click", async () => {
+    const inizio = document.getElementById("orario-inizio").value;
+    const fine = document.getElementById("orario-fine").value;
+    const numero = Number(document.getElementById("orario-numero-ore").value);
+    if(!inizio || !fine || !numero || numero < 1){ showToast("Compila inizio, fine e numero di ore."); return; }
+    const [ih, im] = inizio.split(":").map(Number);
+    const [fh, fm] = fine.split(":").map(Number);
+    if((fh * 60 + fm) <= (ih * 60 + im)){ showToast("L'orario di fine deve essere dopo quello di inizio."); return; }
+
+    const eraVuoto = Object.keys(famData.orario_giorni || {}).length === 0;
+
+    if(eraVuoto){
+      const tuttiIGiorni = {};
+      GIORNI_SETTIMANA.forEach(g => {
+        tuttiIGiorni[g] = { ora_inizio: inizio, ora_fine: fine, numero_ore: numero, materie: Array.from({ length: numero }, () => "") };
+      });
+      await updateDoc(famRef, { orario_giorni: tuttiIGiorni });
+      showToast("Orario impostato per tutti i giorni ✅ Modifica quelli diversi dalle pillole qui sopra.");
+    } else {
+      const attualiMaterie = famData.orario_giorni?.[giornoOrario]?.materie || [];
+      const nuoveMaterie = Array.from({ length: numero }, (_, i) => attualiMaterie[i] || "");
+      await updateDoc(famRef, { [`orario_giorni.${giornoOrario}`]: { ora_inizio: inizio, ora_fine: fine, numero_ore: numero, materie: nuoveMaterie } });
+      showToast(`Orario di ${GIORNI_LABEL[giornoOrario]} aggiornato ✅`);
+    }
   });
 
-  // ---- Storico ----
+  // ---------- Materiali di ogni giorno (dentro la modale Impostazioni) ----------
+  function renderGenerali(){
+    const generali = famData.checklist_generale || [];
+    document.getElementById("lista-generali").innerHTML = generali.length ? generali.map(t => `
+      <li class="riga-voce-modello">
+        <span>${t}</span>
+        <button class="btn btn-sm btn-ghost" data-rimuovi-generale="${idSicuro(t)}">Rimuovi</button>
+      </li>`).join("") : `<div class="empty-state">Nessuna voce fissa ancora.</div>`;
+
+    document.querySelectorAll("[data-rimuovi-generale]").forEach(b => {
+      b.addEventListener("click", async () => {
+        const testo = decodeURIComponent(b.dataset.rimuoviGenerale);
+        const nuovi = (famData.checklist_generale || []).filter(t => t !== testo);
+        await updateDoc(famRef, { checklist_generale: nuovi });
+      });
+    });
+  }
+
+  document.getElementById("btn-aggiungi-generale").addEventListener("click", async () => {
+    const input = document.getElementById("generale-testo");
+    const testo = input.value.trim();
+    if(!testo) return;
+    const attuali = famData.checklist_generale || [];
+    if(attuali.includes(testo)){ showToast("C'è già."); return; }
+    await updateDoc(famRef, { checklist_generale: [...attuali, testo] });
+    input.value = "";
+    showToast("Aggiunto ✅");
+  });
+
+  // ---------- Materie e materiali (dentro la modale) ----------
+  function renderMaterie(){
+    const materie = famData.materie || {};
+    const nomi = Object.keys(materie).sort();
+    const cont = document.getElementById("lista-materie");
+
+    if(!nomi.length){
+      cont.innerHTML = `<div class="empty-state">Ancora nessuna materia: aggiungine una qui sotto, oppure scrivila direttamente in uno slot dell'orario.</div>`;
+      return;
+    }
+
+    cont.innerHTML = nomi.map(nome => {
+      const m = materie[nome];
+      const id = idSicuro(nome);
+      const righeMateriali = (m.materiali || []).length ? m.materiali.map(t => `
+        <li class="riga-voce-modello">
+          <span>${t}</span>
+          <button class="btn btn-sm btn-ghost" data-rimuovi-materiale="${id}::${idSicuro(t)}">Rimuovi</button>
+        </li>`).join("") : `<div class="empty-state">Nessun materiale impostato.</div>`;
+
+      return `
+        <details class="editor-modello materia-block">
+          <summary><span class="materia-dot" style="background:${m.colore || COLORE_DEFAULT};"></span>${nome}</summary>
+
+          <label for="colore-${id}">Colore</label>
+          <input type="color" class="color-input" id="colore-${id}" data-colore-materia="${id}" value="${m.colore || COLORE_DEFAULT}">
+
+          <p class="streak-note" style="margin-top:14px;">Materiali di solito necessari</p>
+          <ul class="history-list" style="margin-bottom:10px;">${righeMateriali}</ul>
+          <div class="form-riga">
+            <input type="text" id="materiale-input-${id}" placeholder="Es. Libro di matematica">
+          </div>
+          <button class="btn btn-sm" data-aggiungi-materiale="${id}">Aggiungi materiale</button>
+
+          <hr class="divider">
+          <button class="btn btn-sm btn-danger" data-rimuovi-materia="${id}">Elimina questa materia</button>
+        </details>`;
+    }).join("");
+
+    cont.querySelectorAll("[data-colore-materia]").forEach(inp => {
+      inp.addEventListener("change", async () => {
+        const nome = decodeURIComponent(inp.dataset.coloreMateria);
+        await updateDoc(famRef, { [`materie.${nome}.colore`]: inp.value });
+      });
+    });
+
+    cont.querySelectorAll("[data-aggiungi-materiale]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.aggiungiMateriale;
+        const nome = decodeURIComponent(id);
+        const input = document.getElementById(`materiale-input-${id}`);
+        const testo = input.value.trim();
+        if(!testo) return;
+        const attuali = famData.materie[nome].materiali || [];
+        if(attuali.includes(testo)){ showToast("C'è già."); return; }
+        await updateDoc(famRef, { [`materie.${nome}.materiali`]: [...attuali, testo] });
+        showToast("Aggiunto ✅");
+      });
+    });
+
+    cont.querySelectorAll("[data-rimuovi-materiale]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const [id, testoCod] = btn.dataset.rimuoviMateriale.split("::");
+        const nome = decodeURIComponent(id);
+        const testo = decodeURIComponent(testoCod);
+        const attuali = famData.materie[nome].materiali || [];
+        await updateDoc(famRef, { [`materie.${nome}.materiali`]: attuali.filter(t => t !== testo) });
+      });
+    });
+
+    cont.querySelectorAll("[data-rimuovi-materia]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const nome = decodeURIComponent(btn.dataset.rimuoviMateria);
+        if(!confirm(`Eliminare la materia "${nome}"? I suoi materiali andranno persi (gli slot dell'orario che la usano resteranno con il nome, ma senza materiali collegati).`)) return;
+        const nuoveMaterie = { ...famData.materie };
+        delete nuoveMaterie[nome];
+        await updateDoc(famRef, { materie: nuoveMaterie });
+      });
+    });
+  }
+
+  document.getElementById("btn-aggiungi-materia").addEventListener("click", async () => {
+    const input = document.getElementById("nuova-materia");
+    const nome = input.value.trim();
+    if(!nome) return;
+    if(famData.materie && famData.materie[nome]){ showToast("Esiste già."); return; }
+    await updateDoc(famRef, { [`materie.${nome}`]: { colore: null, materiali: [] } });
+    input.value = "";
+    showToast(`Materia "${nome}" aggiunta ✅`);
+  });
+
+  // ---------- Storico ----------
   caricaStorico();
 
   async function caricaStorico(){
@@ -228,8 +681,9 @@ proteggiPagina("famiglia", (user) => {
       const g = giorni[idx];
       if(snap.exists()){
         const d = snap.data();
-        const elenco = (d.elenco_del_giorno && d.elenco_del_giorno.length) ? d.elenco_del_giorno : Object.keys(d.voci || {});
-        const fatti = elenco.filter(v => d.voci && d.voci[v]).length;
+        const elencoBase = (d.elenco_del_giorno && d.elenco_del_giorno.length) ? d.elenco_del_giorno : Object.keys(d.voci || {});
+        const elenco = normalizzaLista(elencoBase);
+        const fatti = elenco.filter(v => d.voci && d.voci[v.testo]).length;
         const totale = elenco.length;
         if(fatti > 0) giorniConAlmenoUno++;
         const perc = totale ? Math.round((fatti/totale)*100) : 0;

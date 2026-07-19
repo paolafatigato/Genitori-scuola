@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../css/style.css?v=1">
+<link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body class="ruled-bg">
 <div class="app-shell">
@@ -34,14 +34,10 @@
         <button class="btn btn-sm" id="btn-salva-alunno">Salva nome</button>
       </div>
 
-      <div class="section-title"><h2>🎒 Voci della checklist zaino</h2></div>
+      <div class="section-title"><h2>🧩 Strumenti da usare</h2></div>
       <div class="card-plain">
-        <p class="helper-text">Aggiungi o togli voci per adattarla alle vostre giornate.</p>
-        <ul class="history-list" id="lista-voci-zaino"></ul>
-        <div style="display:flex; gap:8px; margin-top:14px;">
-          <input type="text" id="nuova-voce" placeholder="Nuova voce…" style="margin-bottom:0;">
-          <button class="btn btn-sm btn-primary" id="btn-aggiungi-voce" style="flex-shrink:0;">Aggiungi</button>
-        </div>
+        <p class="helper-text">Scegli quali strumenti mostrare nella home e in che ordine. Puoi cambiare idea quando vuoi; ogni strumento tiene comunque i suoi dati anche se lo disattivi.</p>
+        <div id="lista-strumenti"><div class="spinner-wrap">Un attimo…</div></div>
       </div>
 
       <div class="section-title"><h2>👤 Account</h2></div>
@@ -56,7 +52,7 @@
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
 import { db, doc, updateDoc, onSnapshot } from "/js/firebase-init.js";
-import { showToast } from "/js/utils.js";
+import { showToast, STRUMENTI_DISPONIBILI, normalizzaStrumentiAttivi } from "/js/utils.js";
 
 function vaiAlLogin(){ esci().then(() => window.location.href = "/index.html"); }
 document.getElementById("btn-esci").addEventListener("click", vaiAlLogin);
@@ -66,39 +62,68 @@ proteggiPagina("famiglia", (user, utente) => {
   document.getElementById("email-account").textContent = `Accesso eseguito come ${utente.email || user.email}`;
 
   const famRef = doc(db, "famiglie", user.uid);
-  let voci = [];
+  let famData = null;
 
   onSnapshot(famRef, (snap) => {
-    const fam = snap.data();
-    if(!fam) return;
-    document.getElementById("nome-alunno").value = fam.nome_alunno || "";
-    voci = fam.voci_zaino_personalizzate || [];
-    renderVoci();
+    famData = snap.data();
+    if(!famData) return;
+    document.getElementById("nome-alunno").value = famData.nome_alunno || "";
+    renderStrumenti();
   });
 
-  function renderVoci(){
-    document.getElementById("lista-voci-zaino").innerHTML = voci.map((v, i) => `
-      <li class="history-item">
-        <span class="valore">${v}</span>
-        <button class="btn btn-sm btn-ghost" data-rimuovi="${i}">Rimuovi</button>
-      </li>`).join("") || `<div class="empty-state">Nessuna voce. Aggiungine una qui sotto.</div>`;
+  function renderStrumenti(){
+    const attivi = normalizzaStrumentiAttivi(famData.strumenti_attivi);
+    const inattivi = STRUMENTI_DISPONIBILI.map(s => s.chiave).filter(c => !attivi.includes(c));
+    const ordineVisualizzato = [...attivi, ...inattivi];
 
-    document.querySelectorAll("[data-rimuovi]").forEach(b => b.addEventListener("click", async () => {
-      voci = voci.filter((_, i) => i !== Number(b.dataset.rimuovi));
-      await updateDoc(famRef, { voci_zaino_personalizzate: voci });
-      showToast("Voce rimossa.");
-    }));
+    document.getElementById("lista-strumenti").innerHTML = ordineVisualizzato.map(chiave => {
+      const s = STRUMENTI_DISPONIBILI.find(x => x.chiave === chiave);
+      if(!s) return "";
+      const eAttivo = attivi.includes(chiave);
+      const idx = attivi.indexOf(chiave);
+      const primo = eAttivo && idx === 0;
+      const ultimo = eAttivo && idx === attivi.length - 1;
+
+      return `
+        <div class="link-row">
+          <span class="chi">
+            <input type="checkbox" id="strumento-${chiave}" data-toggle-strumento="${chiave}" ${eAttivo ? "checked" : ""} style="width:20px; height:20px; vertical-align:middle; margin-right:8px;">
+            <label for="strumento-${chiave}" style="display:inline; font-weight:600;">${s.emoji} ${s.nome}</label>
+          </span>
+          <span class="azioni">
+            ${eAttivo
+              ? `<button type="button" class="btn btn-sm btn-ghost" data-sposta="${chiave}::su" ${primo ? "disabled" : ""} title="Sposta su">↑</button>
+                 <button type="button" class="btn btn-sm btn-ghost" data-sposta="${chiave}::giu" ${ultimo ? "disabled" : ""} title="Sposta giù">↓</button>`
+              : `<span class="badge">non attivo</span>`}
+          </span>
+        </div>`;
+    }).join("");
+
+    document.querySelectorAll("[data-toggle-strumento]").forEach(cb => {
+      cb.addEventListener("change", async () => {
+        const chiave = cb.dataset.toggleStrumento;
+        let nuoviAttivi = normalizzaStrumentiAttivi(famData.strumenti_attivi);
+        if(cb.checked){
+          if(!nuoviAttivi.includes(chiave)) nuoviAttivi.push(chiave);
+        } else {
+          nuoviAttivi = nuoviAttivi.filter(c => c !== chiave);
+        }
+        await updateDoc(famRef, { strumenti_attivi: nuoviAttivi });
+      });
+    });
+
+    document.querySelectorAll("[data-sposta]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const [chiave, direzione] = btn.dataset.sposta.split("::");
+        const attualiAttivi = normalizzaStrumentiAttivi(famData.strumenti_attivi);
+        const i = attualiAttivi.indexOf(chiave);
+        const nuovoIndice = direzione === "su" ? i - 1 : i + 1;
+        if(nuovoIndice < 0 || nuovoIndice >= attualiAttivi.length) return;
+        [attualiAttivi[i], attualiAttivi[nuovoIndice]] = [attualiAttivi[nuovoIndice], attualiAttivi[i]];
+        await updateDoc(famRef, { strumenti_attivi: attualiAttivi });
+      });
+    });
   }
-
-  document.getElementById("btn-aggiungi-voce").addEventListener("click", async () => {
-    const input = document.getElementById("nuova-voce");
-    const valore = input.value.trim();
-    if(!valore) return;
-    voci = [...voci, valore];
-    await updateDoc(famRef, { voci_zaino_personalizzate: voci });
-    input.value = "";
-    showToast("Voce aggiunta.");
-  });
 
   document.getElementById("btn-salva-alunno").addEventListener("click", async () => {
     await updateDoc(famRef, { nome_alunno: document.getElementById("nome-alunno").value.trim() });
