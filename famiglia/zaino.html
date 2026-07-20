@@ -87,6 +87,28 @@
       </div>
       <button class="btn btn-sm btn-primary" id="btn-genera-slot">Genera/aggiorna le ore</button>
       <div id="lista-slot-giorno" style="margin-top:14px;"></div>
+
+      <hr class="divider">
+      <details>
+        <summary style="cursor:pointer; font-weight:700; padding:6px 0;">📋 Importa orario da testo</summary>
+        <p class="helper-text">Se il coordinatore di classe vi manda l'orario in un messaggio, incollalo qui: un blocco per giorno, con l'orario sulla prima riga e una materia per riga sotto.</p>
+        <textarea id="testo-import-orario" rows="8" placeholder="Lunedì 8:00-13:00
+Italiano
+Matematica
+Storia
+Inglese
+Scienze
+
+Martedì 8:00-13:00
+Matematica
+Arte
+Educazione fisica
+Musica
+Tecnologia"></textarea>
+        <button class="btn btn-sm" id="btn-analizza-import">Analizza testo</button>
+        <div id="anteprima-import" style="margin-top:10px;"></div>
+        <button class="btn btn-sm btn-primary" id="btn-conferma-import" style="display:none; margin-top:8px;">Conferma e importa</button>
+      </details>
     </div>
   </div>
 
@@ -97,6 +119,7 @@
         <h2>📚 Materie e materiali</h2>
         <button class="modal-close" data-chiudi-modal="modal-materie">✕</button>
       </div>
+      <p class="helper-text">Ogni materia nuova prende in automatico un colore dalla palette; puoi comunque cambiarlo quando vuoi.</p>
       <div id="lista-materie"></div>
       <div class="form-riga"><input type="text" id="nuova-materia" placeholder="Nome nuova materia, es. Matematica"></div>
       <button class="btn btn-sm btn-primary" id="btn-aggiungi-materia">Aggiungi materia</button>
@@ -149,6 +172,14 @@ const GIORNI_LABEL = { lunedi:"Lunedì", martedi:"Martedì", mercoledi:"Mercoled
 const GIORNI_LABEL_BREVE = { lunedi:"Lun", martedi:"Mar", mercoledi:"Mer", giovedi:"Gio", venerdi:"Ven", sabato:"Sab", domenica:"Dom" };
 const COLORE_DEFAULT = "#d9dadc";
 
+// 10 colori predefiniti, dalla stessa palette usata nel resto del sito.
+// Assegnati in ordine a ogni nuova materia; il selettore colore resta
+// comunque disponibile per chi vuole scegliere qualcos'altro.
+const PALETTE_MATERIE = [
+  "#599c73", "#3a7d85", "#9b56a7", "#f45448", "#e94779",
+  "#d9ef9a", "#a1dce0", "#e4b5eb", "#ffbf85", "#ffb0d0"
+];
+
 function chiaveGiornoDaData(d){
   const mappa = ["domenica","lunedi","martedi","mercoledi","giovedi","venerdi","sabato"];
   return mappa[d.getDay()];
@@ -188,6 +219,67 @@ function calcolaSlots(giornoObj){
   return slots;
 }
 
+// ---------- Import orario da testo ----------
+const MAPPA_GIORNI_TESTO = {
+  lunedi:"lunedi", "lunedì":"lunedi", lun:"lunedi",
+  martedi:"martedi", "martedì":"martedi", mar:"martedi",
+  mercoledi:"mercoledi", "mercoledì":"mercoledi", mer:"mercoledi",
+  giovedi:"giovedi", "giovedì":"giovedi", gio:"giovedi",
+  venerdi:"venerdi", "venerdì":"venerdi", ven:"venerdi",
+  sabato:"sabato", sab:"sabato",
+  domenica:"domenica", dom:"domenica"
+};
+
+function analizzaTestoOrario(testo){
+  const righe = testo.split("\n");
+  const risultato = {};
+  const avvisi = [];
+  let giornoCorrente = null;
+
+  righe.forEach(rigaOriginale => {
+    const riga = rigaOriginale.trim();
+    if(!riga) return;
+
+    const primaParola = riga.split(/\s+/)[0].toLowerCase().replace(/[^a-zàèéìòù]/g, "");
+    const chiaveGiorno = MAPPA_GIORNI_TESTO[primaParola];
+
+    if(chiaveGiorno){
+      giornoCorrente = chiaveGiorno;
+      if(!risultato[giornoCorrente]) risultato[giornoCorrente] = { ora_inizio: null, ora_fine: null, materie: [] };
+
+      const matchOrario = riga.match(/(\d{1,2})[:.,](\d{2})\s*[-–a]\s*(\d{1,2})[:.,](\d{2})/);
+      const matchSemplice = riga.match(/\b(\d{1,2})\s*[-–]\s*(\d{1,2})\b/);
+      if(matchOrario){
+        risultato[giornoCorrente].ora_inizio = `${matchOrario[1].padStart(2, "0")}:${matchOrario[2]}`;
+        risultato[giornoCorrente].ora_fine = `${matchOrario[3].padStart(2, "0")}:${matchOrario[4]}`;
+      } else if(matchSemplice){
+        risultato[giornoCorrente].ora_inizio = `${matchSemplice[1].padStart(2, "0")}:00`;
+        risultato[giornoCorrente].ora_fine = `${matchSemplice[2].padStart(2, "0")}:00`;
+      }
+      return;
+    }
+
+    if(giornoCorrente){
+      risultato[giornoCorrente].materie.push(riga);
+    }
+  });
+
+  Object.entries(risultato).forEach(([g, dati]) => {
+    if(dati.materie.length === 0){
+      avvisi.push(`${GIORNI_LABEL[g]}: nessuna materia trovata, giorno ignorato.`);
+      delete risultato[g];
+      return;
+    }
+    if(!dati.ora_inizio || !dati.ora_fine){
+      dati.ora_inizio = dati.ora_inizio || "08:00";
+      dati.ora_fine = dati.ora_fine || "13:00";
+      avvisi.push(`${GIORNI_LABEL[g]}: orario non riconosciuto, uso 08:00–13:00 di default.`);
+    }
+  });
+
+  return { risultato, avvisi };
+}
+
 let giornoOrario = domaniChiave;
 
 function renderPills(container, giornoAttivo, onScegli){
@@ -204,6 +296,7 @@ proteggiPagina("famiglia", (user) => {
 
   let famData = null;
   let domaniData = {};
+  let ultimaAnalisiImport = null;
 
   // ---------- Migrazioni dai modelli precedenti ----------
   async function migraVecchioSeServe(dati){
@@ -291,6 +384,11 @@ proteggiPagina("famiglia", (user) => {
     sincronizzaERendiDomani();
   });
 
+  function prossimoColorePalette(){
+    const usati = Object.keys(famData.materie || {}).length;
+    return PALETTE_MATERIE[usati % PALETTE_MATERIE.length];
+  }
+
   function aggiornaBottoneOrario(){
     const haOrario = Object.keys(famData.orario_giorni || {}).length > 0;
     const btn = document.getElementById("btn-apri-orario");
@@ -314,7 +412,7 @@ proteggiPagina("famiglia", (user) => {
   async function assicuraMateria(nome){
     if(!nome) return;
     if(!famData.materie || !(nome in famData.materie)){
-      await updateDoc(famRef, { [`materie.${nome}`]: { colore: null, materiali: [] } });
+      await updateDoc(famRef, { [`materie.${nome}`]: { colore: prossimoColorePalette(), materiali: [] } });
     }
   }
 
@@ -546,6 +644,60 @@ proteggiPagina("famiglia", (user) => {
     }
   });
 
+  // ---------- Import orario da testo: analisi e conferma ----------
+  document.getElementById("btn-analizza-import").addEventListener("click", () => {
+    const testo = document.getElementById("testo-import-orario").value;
+    if(!testo.trim()){ showToast("Incolla prima il testo dell'orario."); return; }
+
+    const { risultato, avvisi } = analizzaTestoOrario(testo);
+    const giorniTrovati = Object.keys(risultato);
+    const anteprima = document.getElementById("anteprima-import");
+    const btnConferma = document.getElementById("btn-conferma-import");
+
+    if(!giorniTrovati.length){
+      anteprima.innerHTML = `<p class="helper-text">Non ho riconosciuto nessun giorno. Ogni blocco deve iniziare con il nome del giorno (es. "Lunedì").</p>`;
+      btnConferma.style.display = "none";
+      ultimaAnalisiImport = null;
+      return;
+    }
+
+    ultimaAnalisiImport = risultato;
+    const righe = giorniTrovati.map(g => {
+      const d = risultato[g];
+      return `<li class="riga-voce-modello"><span>${GIORNI_LABEL[g]}: ${d.ora_inizio}–${d.ora_fine}, ${d.materie.length} materie (${d.materie.join(", ")})</span></li>`;
+    }).join("");
+    const righeAvvisi = avvisi.map(a => `<p class="helper-text">⚠️ ${a}</p>`).join("");
+
+    anteprima.innerHTML = `<ul class="history-list">${righe}</ul>${righeAvvisi}`;
+    btnConferma.style.display = "";
+  });
+
+  document.getElementById("btn-conferma-import").addEventListener("click", async () => {
+    if(!ultimaAnalisiImport) return;
+
+    const aggiornamento = {};
+    const materieEsistenti = new Set(Object.keys(famData.materie || {}));
+    let contatoreColori = materieEsistenti.size;
+
+    Object.entries(ultimaAnalisiImport).forEach(([g, d]) => {
+      aggiornamento[`orario_giorni.${g}`] = { ora_inizio: d.ora_inizio, ora_fine: d.ora_fine, numero_ore: d.materie.length, materie: d.materie };
+      d.materie.forEach(nome => {
+        if(!materieEsistenti.has(nome)){
+          aggiornamento[`materie.${nome}`] = { colore: PALETTE_MATERIE[contatoreColori % PALETTE_MATERIE.length], materiali: [] };
+          materieEsistenti.add(nome);
+          contatoreColori++;
+        }
+      });
+    });
+
+    await updateDoc(famRef, aggiornamento);
+    document.getElementById("testo-import-orario").value = "";
+    document.getElementById("anteprima-import").innerHTML = "";
+    document.getElementById("btn-conferma-import").style.display = "none";
+    ultimaAnalisiImport = null;
+    showToast("Orario importato ✅");
+  });
+
   // ---------- Materiali di ogni giorno (dentro la modale Impostazioni) ----------
   function renderGenerali(){
     const generali = famData.checklist_generale || [];
@@ -599,7 +751,7 @@ proteggiPagina("famiglia", (user) => {
         <details class="editor-modello materia-block">
           <summary><span class="materia-dot" style="background:${m.colore || COLORE_DEFAULT};"></span>${nome}</summary>
 
-          <label for="colore-${id}">Colore</label>
+          <label for="colore-${id}">Colore (assegnato in automatico, modificabile qui)</label>
           <input type="color" class="color-input" id="colore-${id}" data-colore-materia="${id}" value="${m.colore || COLORE_DEFAULT}">
 
           <p class="streak-note" style="margin-top:14px;">Materiali di solito necessari</p>
@@ -661,7 +813,7 @@ proteggiPagina("famiglia", (user) => {
     const nome = input.value.trim();
     if(!nome) return;
     if(famData.materie && famData.materie[nome]){ showToast("Esiste già."); return; }
-    await updateDoc(famRef, { [`materie.${nome}`]: { colore: null, materiali: [] } });
+    await updateDoc(famRef, { [`materie.${nome}`]: { colore: prossimoColorePalette(), materiali: [] } });
     input.value = "";
     showToast(`Materia "${nome}" aggiunta ✅`);
   });

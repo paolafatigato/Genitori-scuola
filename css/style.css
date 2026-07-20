@@ -629,4 +629,117 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 }
 .tab-azioni button.evidenziato{
   background:var(--accento-600); border-color:var(--accento-600);
+}:root{
+  /* ... aggiungi accanto agli altri colori "materia" ... */
+  --org-100:#ffe1a8;
+  --org-600:#e2932c;
 }
+
+/* ==========================================================================
+   Organizzazione — termometro e scheda a 3 colonne
+   ========================================================================== */
+.subject-tab--organizzazione{ background:var(--org-600); }
+.tool-card--organizzazione .emoji-badge{ background:var(--org-100); }
+
+.thermo-track{
+  width:100%;
+  height:28px;
+  background:var(--paper-alt);
+  border:2px solid var(--ink);
+  border-radius:999px;
+  overflow:hidden;
+  margin-bottom:8px;
+}
+.thermo-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--org-100), var(--org-600));
+  border-radius:999px 0 0 999px;
+  transition:width .3s ease;
+}
+.thermo-label{
+  font-weight:600;
+  font-size:.9rem;
+  color:var(--ink-soft);
+  margin:0;
+}
+
+.col3-head, .col3-row{
+  display:grid;
+  grid-template-columns: 32px 1.3fr 1.3fr 1fr 32px;
+  gap:8px;
+  align-items:center;
+  padding:10px 4px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.col3-head{
+  font-size:.72rem;
+  font-weight:700;
+  color:var(--ink-soft);
+  text-transform:uppercase;
+  letter-spacing:.02em;
+  border-bottom:2px solid var(--ink);
+}
+.col3-row input[type=checkbox]{
+  width:24px; height:24px;
+  accent-color:var(--org-600);
+}
+.col3-row input[type=text]{
+  margin:0;
+  padding:8px 10px;
+  font-size:.9rem;
+}
+.col3-row.fatto input[type=text]{
+  text-decoration:line-through;
+  color:var(--ink-soft);
+  background:var(--paper-alt);
+}
+.col3-row .btn-rimuovi{
+  border:none;
+  background:transparent;
+  color:var(--ink-soft);
+  font-size:1.1rem;
+  cursor:pointer;
+  padding:4px;
+}
+.col3-row .btn-rimuovi:hover{ color:var(--emozioni-600); }
+
+@media (max-width:600px){
+  .col3-head{ display:none; }
+  .col3-row{
+    grid-template-columns: 28px 1fr 32px;
+    grid-template-areas:
+      "check compito rimuovi"
+      "check materiale rimuovi"
+      "check orario rimuovi";
+    row-gap:6px;
+  }
+  .col3-row input[type=checkbox]{ grid-area:check; align-self:start; margin-top:10px; }
+  .col3-row .campo-compito{ grid-area:compito; }
+  .col3-row .campo-materiale{ grid-area:materiale; }
+  .col3-row .campo-orario{ grid-area:orario; }
+  .col3-row .btn-rimuovi{ grid-area:rimuovi; align-self:start; margin-top:6px; }
+}
+.history-item{ gap:8px; flex-wrap:nowrap; }
+.azioni-storico{
+  display:flex;
+  gap:6px;
+  flex-shrink:0;
+}
+.icon-btn{
+  border:2px solid var(--ink);
+  background:var(--white);
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.95rem;
+  cursor:pointer;
+  flex-shrink:0;
+  padding:0;
+}
+.icon-btn:hover{ background:var(--paper-alt); }
+.icon-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.icon-btn--danger{ border-color:var(--emozioni-600); color:var(--emozioni-600); }
+.icon-btn--danger:hover{ background:var(--emozioni-100); }

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Organizzazione — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/organizzazione.html" class="active"><span class="icon">📋</span>Compiti</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--organizzazione"><span class="emoji">📋</span> Organizzazione</div>
+
+      <div class="notebook-card">
+        <p class="helper-text">Il termometro si riempie da solo man mano che spuntate i compiti fatti. Va benissimo anche non finire tutto ogni giorno.</p>
+        <div class="thermo-track">
+          <div class="thermo-fill" id="thermo-fill" style="width:0%"></div>
+        </div>
+        <p class="thermo-label" id="thermo-label">Aggiungi il primo compito per iniziare</p>
+
+        <hr class="divider">
+
+        <div class="section-title" style="margin:0 0 10px;">
+          <h3 style="margin:0;">Scheda di oggi</h3>
+          <button class="btn btn-sm btn-accent" id="btn-aggiungi">+ Aggiungi</button>
+        </div>
+        <div class="col3-head">
+          <span>Fatto</span>
+          <span>Cosa devo fare</span>
+          <span>Di cosa ho bisogno</span>
+          <span>Quando lo farò</span>
+          <span></span>
+        </div>
+        <div id="righe-lista"></div>
+        <div class="empty-state" id="empty-state">
+          <span class="emoji">📋</span>
+          Nessun compito ancora. Tocca "+ Aggiungi" per iniziare.
+        </div>
+      </div>
+
+      <div class="section-title"><h2>📖 Storico (ultimi 30 giorni)</h2></div>
+      <div class="card-plain">
+        <p class="streak-note" id="riepilogo-storico"></p>
+        <div class="bar-chart" id="grafico-organizzazione"></div>
+        <hr class="divider">
+        <ul class="history-list" id="lista-storico"></ul>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+let righe = []; // { id, compito, materiale, orario, fatto }
+let oggiRef = null; // impostato dentro proteggiPagina, appena conosciamo l'utente
+let salvaTimeout = null;
+
+const listaEl = document.getElementById("righe-lista");
+const emptyEl = document.getElementById("empty-state");
+const fillEl = document.getElementById("thermo-fill");
+const labelEl = document.getElementById("thermo-label");
+
+// Nota: uso getDoc + salvataggio manuale (non onSnapshot come in emozioni/sonno)
+// perché la scheda ha campi di testo modificati a ogni tasto: un onSnapshot che
+// si ri-attiva anche sui nostri stessi salvataggi ridisegnerebbe gli <input>
+// mentre si sta scrivendo, facendo perdere il focus e la posizione del cursore.
+function salva(){
+  if(!oggiRef) return;
+  clearTimeout(salvaTimeout);
+  salvaTimeout = setTimeout(async () => {
+    try{
+      await setDoc(oggiRef, { righe, aggiornato_il: new Date().toISOString() }, { merge: true });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+function aggiornaTermometro(){
+  const totale = righe.length;
+  const fatti = righe.filter(r => r.fatto).length;
+  const perc = totale ? Math.round((fatti / totale) * 100) : 0;
+  fillEl.style.width = perc + "%";
+  labelEl.textContent = totale
+    ? `${fatti} di ${totale} compiti completati oggi`
+    : "Aggiungi il primo compito per iniziare";
+}
+
+function aggiornaEmptyState(){
+  emptyEl.style.display = righe.length ? "none" : "";
+}
+
+function creaRigaEl(riga){
+  const row = document.createElement("div");
+  row.className = "col3-row" + (riga.fatto ? " fatto" : "");
+  row.dataset.id = riga.id;
+  row.innerHTML = `
+    <input type="checkbox" ${riga.fatto ? "checked" : ""} aria-label="Fatto">
+    <input type="text" class="campo-compito" placeholder="es. Esercizi di matematica" value="${riga.compito ?? ""}">
+    <input type="text" class="campo-materiale" placeholder="es. Quaderno e righello" value="${riga.materiale ?? ""}">
+    <input type="text" class="campo-orario" placeholder="es. 17:00" value="${riga.orario ?? ""}">
+    <button class="btn-rimuovi" title="Rimuovi compito" aria-label="Rimuovi compito">✕</button>
+  `;
+
+  row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+    riga.fatto = e.target.checked;
+    row.classList.toggle("fatto", riga.fatto);
+    aggiornaTermometro();
+    salva();
+  });
+  row.querySelector(".campo-compito").addEventListener("input", (e) => { riga.compito = e.target.value; salva(); });
+  row.querySelector(".campo-materiale").addEventListener("input", (e) => { riga.materiale = e.target.value; salva(); });
+  row.querySelector(".campo-orario").addEventListener("input", (e) => { riga.orario = e.target.value; salva(); });
+  row.querySelector(".btn-rimuovi").addEventListener("click", () => {
+    righe = righe.filter(r => r.id !== riga.id);
+    row.remove();
+    aggiornaEmptyState();
+    aggiornaTermometro();
+    salva();
+  });
+
+  return row;
+}
+
+function renderTutto(){
+  listaEl.innerHTML = "";
+  righe.forEach(r => listaEl.appendChild(creaRigaEl(r)));
+  aggiornaEmptyState();
+  aggiornaTermometro();
+}
+
+document.getElementById("btn-aggiungi").addEventListener("click", () => {
+  const nuova = { id: crypto.randomUUID(), compito: "", materiale: "", orario: "", fatto: false };
+  righe.push(nuova);
+  listaEl.appendChild(creaRigaEl(nuova));
+  aggiornaEmptyState();
+  aggiornaTermometro();
+  salva();
+  listaEl.lastElementChild.querySelector(".campo-compito").focus();
+});
+
+proteggiPagina("famiglia", (user) => {
+  const oggi = todayId();
+  oggiRef = doc(db, "famiglie", user.uid, "voci_organizzazione", oggi);
+
+  (async () => {
+    const snap = await getDoc(oggiRef);
+    righe = snap.exists() ? (snap.data().righe || []) : [];
+    renderTutto();
+  })();
+
+  caricaStorico();
+
+  async function caricaStorico(){
+    const giorni = ultimiNGiorni(30);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_organizzazione", g))));
+
+    let giorniConAlmenoUno = 0;
+    const righeStorico = [];
+    const barre = [];
+
+    risultati.forEach((snap, idx) => {
+      const g = giorni[idx];
+      if(snap.exists()){
+        const dati = snap.data().righe || [];
+        const tot = dati.length;
+        const fatti = dati.filter(r => r.fatto).length;
+        if(fatti > 0) giorniConAlmenoUno++;
+        const perc = tot ? Math.round((fatti / tot) * 100) : 0;
+        righeStorico.push({ g, testo: `${fatti}/${tot}` });
+        barre.push({ g, perc });
+      } else {
+        barre.push({ g, perc: 0 });
+      }
+    });
+
+    document.getElementById("riepilogo-storico").textContent =
+      `Compilata ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
+
+    document.getElementById("grafico-organizzazione").innerHTML = barre.slice(-14).map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${Math.max(b.perc,4)}%; background:var(--org-100);"></div>
+        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
+      </div>`).join("");
+
+    document.getElementById("lista-storico").innerHTML = righeStorico.length
+      ? righeStorico.slice().reverse().map(r => `
+        <li class="history-item">
+          <span class="data">${formatDateBreve(r.g)}</span>
+          <span class="valore">${r.testo} completati</span>
+        </li>`).join("")
+      : `<div class="empty-state"><span class="emoji">📋</span>Ancora nessuna compilazione.</div>`;
+  }
+});
+</script>
+</body>
+</html>
