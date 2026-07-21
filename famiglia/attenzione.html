@@ -374,6 +374,10 @@ document.getElementById("btn-aggiungi-voce").addEventListener("click", async () 
 
 // --- Avvio pagina ------------------------------------------------------------
 proteggiPagina("famiglia", (user) => {
+  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/attenzione.html", snap.data()?.strumenti_attivi);
+  });
+
   famRef = doc(db, "famiglie", user.uid);
   const oggi = todayId();
   oggiRef = doc(db, "famiglie", user.uid, "voci_attenzione", oggi);

@@ -56,6 +56,10 @@ document.getElementById("btn-esci").addEventListener("click", vaiAlLogin);
 document.getElementById("btn-esci-2").addEventListener("click", vaiAlLogin);
 
 proteggiPagina("famiglia", (user, utente) => {
+  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/impostazioni.html", snap.data()?.strumenti_attivi);
+  });
+
   document.getElementById("email-account").textContent = `Accesso eseguito come ${utente.email || user.email}`;
 
   const famRef = doc(db, "famiglie", user.uid);

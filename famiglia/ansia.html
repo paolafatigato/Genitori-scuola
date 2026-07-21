@@ -252,6 +252,10 @@ function generaPassiVuoti(n){
 // --- Avvio pagina ------------------------------------------------------------
 // DOPO
 proteggiPagina("famiglia", (user) => {
+  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/ansia.html", snap.data()?.strumenti_attivi);
+  });
+
   accomodamentoRef = doc(db, "famiglie", user.uid, "strumenti_ansia", "accomodamento");
   esposizioneRef = doc(db, "famiglie", user.uid, "strumenti_ansia", "esposizione");
 

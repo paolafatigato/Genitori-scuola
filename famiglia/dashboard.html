@@ -73,6 +73,7 @@ proteggiPagina("famiglia", (user, utente) => {
   onSnapshot(famRef, (snap) => {
     const fam = snap.data();
     if(!fam) return;
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/dashboard.html", fam.strumenti_attivi);
     document.getElementById("codice-condivisione").textContent = fam.codice_condivisione || "------";
     caricaRiepilogoStrumenti(fam);
   });
