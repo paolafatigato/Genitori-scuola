@@ -90,3 +90,32 @@ export function normalizzaStrumentiAttivi(raw){
   }
   return chiaviValide;
 }
+
+// Costruisce la bottom-nav famiglia: "Oggi" sempre per primo, poi gli
+// strumenti attivi nell'ordine scelto in Impostazioni, poi quelli non
+// attivi in grigio (restano raggiungibili: i dati non si perdono
+// disattivandoli), infine "Impostazioni" sempre per ultimo, colorata
+// come le altre voci normali.
+export function renderNavFamiglia(navEl, hrefAttiva, strumentiAttiviRaw){
+  if(!navEl) return;
+  const attivi = normalizzaStrumentiAttivi(strumentiAttiviRaw);
+  const inattivi = STRUMENTI_DISPONIBILI.map(s => s.chiave).filter(c => !attivi.includes(c));
+
+  const vociAttive = attivi.map(c => STRUMENTI_DISPONIBILI.find(s => s.chiave === c)).filter(Boolean);
+  const vociInattive = inattivi
+    .map(c => STRUMENTI_DISPONIBILI.find(s => s.chiave === c))
+    .filter(Boolean)
+    .map(s => ({ ...s, nonAttivo: true }));
+
+  const voci = [
+    { nome: "Oggi", emoji: "🏠", href: "/famiglia/dashboard.html" },
+    ...vociAttive,
+    ...vociInattive,
+    { nome: "Impostazioni", emoji: "⚙️", href: "/famiglia/impostazioni.html" }
+  ];
+
+  navEl.innerHTML = voci.map(v => {
+    const classi = [v.href === hrefAttiva ? "active" : "", v.nonAttivo ? "non-attivo" : ""].filter(Boolean).join(" ");
+    return `<a href="${v.href}"${classi ? ` class="${classi}"` : ""}><span class="icon">${v.emoji}</span>${v.nome}</a>`;
+  }).join("");
+}

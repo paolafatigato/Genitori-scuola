@@ -2,6 +2,14 @@
    Il Diario Insieme — sistema di stile
    Identità: diario/quaderno scolastico. Ogni strumento ha un colore "materia"
    preso dalla palette fornita; il grigio/nero è l'inchiostro e la carta.
+
+   SISTEMA DI TEMI: ogni pagina applica una classe .tema-<strumento> al
+   <body> (es. class="ruled-bg tema-zaino"). Questo imposta le variabili
+   --tema-100/--tema-600, che tutti i componenti "colorati" condivisi
+   (bottoni accento, checkbox, tag, termometro, numeri dei passi...) usano
+   al posto di un colore fisso. Così lo stesso componente riusato su più
+   pagine (es. i "passi a gradini" di Ansia e Autostima) prende sempre il
+   colore corretto della sezione in cui si trova.
    ========================================================================== */
 
 /* I font (Caveat, Work Sans) si caricano da <link> nell'<head> di ogni
@@ -20,17 +28,34 @@
   --black:#000000;
   --white:#ffffff;
 
-  /* --- Colori "materia", dalla palette --- */
+  /* --- Colori "materia", uno per strumento/sezione --- */
   --zaino-100:#d9ef9a;
   --zaino-600:#599c73;
   --sonno-100:#a1dce0;
   --sonno-600:#3a7d85;
   --emozioni-100:#ffbf85;
   --emozioni-600:#f45448;
+  --org-100:#ffe1a8;
+  --org-600:#e2932c;
+  --attenzione-100:#c3cdf7;
+  --attenzione-600:#4a5fc4;
+  --ansia-100:#bfe0f7;
+  --ansia-600:#4f89c7;
+  --autostima-100:#ffcdb2;
+  --autostima-600:#e2725b;
   --docente-100:#e4b5eb;
   --docente-600:#9b56a7;
   --accento-100:#ffb0d0;
   --accento-600:#e94779;
+
+  /* --- Colori semantici (non legati a una sezione) --- */
+  --danger-600: var(--emozioni-600);   /* azioni distruttive: rimuovi, elimina */
+  --pausa-600:#4fae7a;                 /* pausa del timer Attenzione */
+
+  /* --- Tema corrente: sovrascritto per pagina da .tema-<strumento> sul <body> ---
+     Il default (accento) copre le pagine senza sezione, es. login/impostazioni. */
+  --tema-100: var(--accento-100);
+  --tema-600: var(--accento-600);
 
   /* --- Forma --- */
   --radius-s:10px;
@@ -44,6 +69,22 @@
   --font-body:'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+/* ==========================================================================
+   Temi per sezione — una classe sul <body>, tutto il resto si aggiorna da solo
+   ========================================================================== */
+.tema-zaino{ --tema-100:var(--zaino-100); --tema-600:var(--zaino-600); }
+.tema-attenzione{ --tema-100:var(--attenzione-100); --tema-600:var(--attenzione-600); }
+.tema-organizzazione{ --tema-100:var(--org-100); --tema-600:var(--org-600); }
+.tema-ansia{ --tema-100:var(--ansia-100); --tema-600:var(--ansia-600); }
+.tema-autostima{ --tema-100:var(--autostima-100); --tema-600:var(--autostima-600); }
+.tema-emozioni{ --tema-100:var(--emozioni-100); --tema-600:var(--emozioni-600); }
+.tema-sonno{ --tema-100:var(--sonno-100); --tema-600:var(--sonno-600); }
+.tema-docente{ --tema-100:var(--docente-100); --tema-600:var(--docente-600); }
+.tema-casa{ --tema-100:var(--accento-100); --tema-600:var(--accento-600); }
+
+/* ==========================================================================
+   Reset e base
+   ========================================================================== */
 *, *::before, *::after{ box-sizing:border-box; }
 html{ -webkit-text-size-adjust:100%; }
 body{
@@ -59,15 +100,19 @@ h1{ font-size:2.4rem; }
 h2{ font-size:1.8rem; }
 h3{ font-size:1.3rem; }
 p{ margin:0 0 .8em; }
-a{ color:var(--accento-600); }
+a{ color:var(--tema-600); }
 button{ font-family:inherit; }
 img{ max-width:100%; display:block; }
 
 /* Focus visibile ovunque, per accessibilità da tastiera */
 :focus-visible{
-  outline:3px solid var(--accento-600);
+  outline:3px solid var(--tema-600);
   outline-offset:2px;
   border-radius:6px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition:none !important; animation:none !important; }
 }
 
 /* ==========================================================================
@@ -113,7 +158,7 @@ img{ max-width:100%; display:block; }
 }
 .topbar .brand .dot{
   width:12px; height:12px; border-radius:50%;
-  background:var(--accento-600);
+  background:var(--tema-600);
   display:inline-block;
 }
 .topbar-actions{ display:flex; align-items:center; gap:10px; }
@@ -153,7 +198,8 @@ img{ max-width:100%; display:block; }
 }
 .bottom-nav a .icon{ font-size:1.35rem; line-height:1; }
 .bottom-nav a.active{ color:var(--ink); background:var(--paper-alt); }
-
+.bottom-nav a.non-attivo{ opacity:.4; }
+.bottom-nav a.non-attivo:hover{ opacity:.7; }
 @media (min-width:860px){
   .app-shell{ flex-direction:row; }
   .bottom-nav{
@@ -195,9 +241,32 @@ img{ max-width:100%; display:block; }
 .subject-tab--zaino{ background:var(--zaino-600); }
 .subject-tab--sonno{ background:var(--sonno-600); }
 .subject-tab--emozioni{ background:var(--emozioni-600); }
+.subject-tab--organizzazione{ background:var(--org-600); }
+.subject-tab--attenzione{ background:var(--attenzione-600); }
+.subject-tab--ansia{ background:var(--ansia-600); }
+.subject-tab--autostima{ background:var(--autostima-600); }
 .subject-tab--docente{ background:var(--docente-600); }
 .subject-tab--casa{ background:var(--accento-600); }
 
+/* Variante del tab "materia" con pulsanti azione (usata da Zaino) */
+.subject-tab--with-actions{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap; width:calc(100% - 6px); box-sizing:border-box;
+}
+.tab-azioni{ display:flex; gap:6px; }
+.tab-azioni button{
+  width:38px; height:38px; border-radius:50%;
+  background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.6);
+  color:var(--white); font-size:1.05rem; cursor:pointer; padding:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.tab-azioni button.evidenziato{
+  background:var(--tema-600); border-color:var(--tema-600);
+}
+
+/* ==========================================================================
+   Card
+   ========================================================================== */
 .notebook-card{
   background:var(--paper);
   border:2px solid var(--ink);
@@ -255,18 +324,39 @@ img{ max-width:100%; display:block; }
 .btn:hover{ transform:translateY(-1px); }
 .btn:active{ transform:translateY(1px); }
 .btn-primary{ background:var(--ink); color:var(--white); border-color:var(--ink); }
-.btn-accent{ background:var(--accento-600); color:var(--white); border-color:var(--accento-600); }
+/* Bottone "colorato": + Aggiungi, Salva, e ogni azione principale legata
+   alla sezione in cui si trova. Prende sempre il colore del tema corrente. */
+.btn-accent{ background:var(--tema-600); color:var(--white); border-color:var(--tema-600); }
 .btn-block{ width:100%; }
 .btn-ghost{ background:transparent; border-color:var(--rule); color:var(--ink-soft); }
-.btn-danger{ background:var(--white); color:var(--emozioni-600); border-color:var(--emozioni-600); }
+.btn-danger{ background:var(--white); color:var(--danger-600); border-color:var(--danger-600); }
 .btn[disabled]{ opacity:.5; cursor:not-allowed; transform:none; }
 .btn-sm{ padding:8px 16px; font-size:.85rem; min-height:38px; }
+
+.icon-btn{
+  border:2px solid var(--ink);
+  background:var(--white);
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.95rem;
+  cursor:pointer;
+  flex-shrink:0;
+  padding:0;
+}
+.icon-btn:hover{ background:var(--paper-alt); }
+.icon-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.icon-btn--danger{ border-color:var(--danger-600); color:var(--danger-600); }
+.icon-btn--danger:hover{ background:var(--emozioni-100); }
 
 /* ==========================================================================
    Form
    ========================================================================== */
 label{ display:block; font-weight:600; font-size:.9rem; margin-bottom:6px; }
-input[type=text], input[type=time], input[type=number], textarea, select{
+input[type=text], input[type=time], input[type=number], input[type=date], textarea, select{
   width:100%;
   font-family:inherit;
   font-size:1rem;
@@ -279,8 +369,20 @@ input[type=text], input[type=time], input[type=number], textarea, select{
 }
 input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none; }
 .field-hint{ font-size:.8rem; color:var(--ink-soft); margin-top:-10px; margin-bottom:16px; }
+.form-riga{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.form-riga input[type=text], .form-riga input[type=time], .form-riga input[type=date]{
+  margin-bottom:0; flex:1; min-width:110px;
+}
+input[type=color].color-input{
+  width:42px; height:36px; padding:2px; border-radius:8px;
+  border:2px solid var(--rule); cursor:pointer; flex-shrink:0;
+}
 
-/* Checklist */
+/* Riga generica "aggiungi voce" (input + bottone), usata da più strumenti */
+.riga-aggiungi{ display:flex; gap:8px; margin-top:12px; }
+.riga-aggiungi input[type="text"]{ flex:1; margin:0; }
+
+/* Checklist generica */
 .check-row{
   display:flex;
   align-items:center;
@@ -291,10 +393,17 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
 .check-row:last-child{ border-bottom:none; }
 .check-row input[type=checkbox]{
   width:26px; height:26px;
-  accent-color:var(--zaino-600);
+  accent-color:var(--tema-600);
   flex-shrink:0;
 }
 .check-row label{ margin:0; font-weight:500; font-size:1.02rem; flex:1; cursor:pointer; }
+
+/* Etichetta per una voce aggiunta dalla famiglia (extra rispetto al modello) */
+.tag-extra{
+  display:inline-block; font-size:.68rem; font-weight:700;
+  background:var(--tema-100); border-radius:999px;
+  padding:2px 9px; margin-left:8px; vertical-align:middle;
+}
 
 /* Scala a 5 (emozioni / umore) */
 .scale-5{ display:flex; gap:8px; justify-content:space-between; margin-bottom:16px; }
@@ -307,7 +416,7 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
   background:var(--white);
   cursor:pointer;
 }
-.scale-5 button.selected{ border-color:var(--ink); background:var(--emozioni-100); transform:scale(1.06); }
+.scale-5 button.selected{ border-color:var(--ink); background:var(--tema-100); transform:scale(1.06); }
 .scale-5 button:focus-visible{ outline-offset:3px; }
 
 /* ==========================================================================
@@ -324,6 +433,8 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
   border:2px solid var(--ink);
   background:var(--white);
 }
+/* Stati del collegamento famiglia↔docente: colori fissi (non di sezione),
+   coerenti in tutta l'app: verde = ok, arancio = in attesa. */
 .badge-attesa{ background:var(--emozioni-100); }
 .badge-accettato{ background:var(--zaino-100); }
 .badge-rifiutato, .badge-revocato{ background:var(--rule-soft); color:var(--ink-soft); border-color:var(--rule); }
@@ -367,11 +478,13 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
   gap:12px;
   padding:11px 4px;
   border-bottom:1px solid var(--rule-soft);
+  flex-wrap:nowrap;
 }
 .history-item:last-child{ border-bottom:none; }
 .history-item .data{ font-weight:600; font-size:.85rem; color:var(--ink-soft); width:84px; flex-shrink:0; }
 .history-item .valore{ flex:1; }
 .history-item .nota{ font-size:.85rem; color:var(--ink-soft); font-style:italic; }
+.azioni-storico{ display:flex; gap:6px; flex-shrink:0; }
 
 .bar-chart{
   display:flex;
@@ -420,7 +533,7 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
 .role-card p{ font-size:.85rem; color:var(--ink-soft); margin:6px 0 0; }
 
 /* ==========================================================================
-   Dashboard: cerchietti/riepilogo materie
+   Dashboard: cerchietti/riepilogo strumenti
    ========================================================================== */
 .tool-grid{ display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:22px; }
 @media (min-width:560px){ .tool-grid{ grid-template-columns:1fr 1fr 1fr; } }
@@ -441,9 +554,15 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
   font-size:1.4rem;
   border:2px solid var(--ink);
 }
+/* Qui i colori restano fissi per strumento (non "di tema"): la home mostra
+   più strumenti fianco a fianco, ognuno deve mantenere il proprio colore. */
 .tool-card--zaino .emoji-badge{ background:var(--zaino-100); }
 .tool-card--sonno .emoji-badge{ background:var(--sonno-100); }
 .tool-card--emozioni .emoji-badge{ background:var(--emozioni-100); }
+.tool-card--organizzazione .emoji-badge{ background:var(--org-100); }
+.tool-card--attenzione .emoji-badge{ background:var(--attenzione-100); }
+.tool-card--ansia .emoji-badge{ background:var(--ansia-100); }
+.tool-card--autostima .emoji-badge{ background:var(--autostima-100); }
 .tool-card h3{ margin:0 0 4px; }
 .tool-card .stato{ font-size:.85rem; color:var(--ink-soft); }
 
@@ -460,28 +579,25 @@ input:focus, textarea:focus, select:focus{ border-color:var(--ink); outline:none
   display:inline-block;
 }
 
-/* Selettore giorni della settimana (editor modello checklist) */
+/* ==========================================================================
+   Selettore giorni della settimana (editor modello checklist, Zaino)
+   ========================================================================== */
 .day-pills{ display:flex; gap:6px; overflow-x:auto; padding:2px 2px 8px; margin-bottom:12px; -webkit-overflow-scrolling:touch; }
 .day-pills button{
   flex:0 0 auto; padding:8px 14px; border-radius:999px;
   border:2px solid var(--rule); background:var(--white);
   font-weight:700; font-size:.82rem; cursor:pointer; color:var(--ink-soft); position:relative;
 }
-.day-pills button.active{ border-color:var(--ink); background:var(--zaino-100); color:var(--ink); }
+.day-pills button.active{ border-color:var(--ink); background:var(--tema-100); color:var(--ink); }
 .day-pills button.oggi::after{
   content:""; position:absolute; top:-3px; right:-3px;
   width:8px; height:8px; border-radius:50%;
-  background:var(--accento-600); border:2px solid var(--paper);
+  background:var(--tema-600); border:2px solid var(--paper);
 }
 
-/* Etichetta per una voce aggiunta una tantum, solo per oggi */
-.tag-extra{
-  display:inline-block; font-size:.68rem; font-weight:700;
-  background:var(--accento-100); border-radius:999px;
-  padding:2px 9px; margin-left:8px; vertical-align:middle;
-}
-
-/* Riquadro pieghevole "personalizza il modello" */
+/* ==========================================================================
+   Riquadro pieghevole "personalizza il modello"
+   ========================================================================== */
 details.editor-modello{
   background:var(--paper); border:2px solid var(--ink); border-radius:var(--radius-m);
   padding:4px 18px 18px; margin-bottom:24px; box-shadow:var(--shadow-card);
@@ -503,6 +619,9 @@ details.editor-modello[open] summary::after{ transform:rotate(270deg); }
 }
 .riga-voce-modello:last-child{ border-bottom:none; }
 
+/* ==========================================================================
+   Titoli di sezione, righe di collegamento, commenti, varie
+   ========================================================================== */
 .section-title{ display:flex; align-items:center; justify-content:space-between; margin:28px 0 12px; }
 .section-title h2{ margin:0; }
 
@@ -527,15 +646,12 @@ details.editor-modello[open] summary::after{ transform:rotate(270deg); }
 .comment .meta{ font-size:.75rem; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
 
 .spinner-wrap{ display:flex; justify-content:center; padding:40px 0; color:var(--ink-soft); }
-
 .helper-text{ color:var(--ink-soft); font-size:.92rem; }
-
 .divider{ border:none; border-top:1px solid var(--rule-soft); margin:20px 0; }
 
-@media (prefers-reduced-motion: reduce){
-  *{ transition:none !important; animation:none !important; }
-}
-/* Gruppi per materia nella checklist di oggi */
+/* ==========================================================================
+   Zaino — gruppi per materia nella checklist di oggi
+   ========================================================================== */
 .materia-header{
   display:flex; align-items:center; gap:8px;
   font-weight:700; font-size:.95rem;
@@ -557,15 +673,10 @@ details.editor-modello[open] summary::after{ transform:rotate(270deg); }
 }
 .slot-row:last-child, .colore-row:last-child{ border-bottom:none; }
 .slot-row .slot-info{ flex:1; }
-.slot-row .slot-orario{ font-size:.8rem; color:var(--ink-soft); }
-input[type=color].color-input{
-  width:42px; height:36px; padding:2px; border-radius:8px;
-  border:2px solid var(--rule); cursor:pointer; flex-shrink:0;
-}
-.form-riga{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-.form-riga input[type=text], .form-riga input[type=time], .form-riga input[type=date]{
-  margin-bottom:0; flex:1; min-width:110px;
-}/* Colpo d'occhio settimanale (sola lettura) */
+.slot-row .slot-orario{ font-size:.8rem; color:var(--ink-soft); min-width:92px; flex-shrink:0; }
+.slot-row input[type=text]{ flex:1; margin-bottom:0; }
+
+/* Colpo d'occhio settimanale (sola lettura) */
 .giorno-riepilogo{ padding:10px 4px; border-bottom:1px solid var(--rule-soft); }
 .giorno-riepilogo:last-child{ border-bottom:none; }
 .giorno-riepilogo.evidenziato{ background:var(--paper-alt); border-radius:var(--radius-s); padding:10px 10px; }
@@ -587,9 +698,11 @@ details.materia-block summary{
   font-family:var(--font-body); font-weight:700; font-size:1rem;
   padding:12px 0; display:flex; align-items:center; gap:8px;
 }
-details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro le righe degli slot orario generati */
-.slot-row .slot-orario{ min-width:92px; flex-shrink:0; }
-.slot-row input[type=text]{ flex:1; margin-bottom:0; }/* Modali: orario e materie */
+details.materia-block summary::after{ font-size:1.1rem; }
+
+/* ==========================================================================
+   Modali: orario e materie
+   ========================================================================== */
 .modal-overlay{
   position:fixed; inset:0; background:rgba(32,33,31,.55);
   display:none; align-items:flex-end; justify-content:center;
@@ -615,32 +728,11 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 .modal-close{
   background:none; border:none; font-size:1.4rem; cursor:pointer;
   color:var(--ink-soft); padding:4px 8px; line-height:1; flex-shrink:0;
-}/* Variante del tab "materia" con pulsanti azione (usata da Zaino) */
-.subject-tab--with-actions{
-  display:flex; align-items:center; justify-content:space-between;
-  gap:10px; flex-wrap:wrap; width:calc(100% - 6px); box-sizing:border-box;
-}
-.tab-azioni{ display:flex; gap:6px; }
-.tab-azioni button{
-  width:38px; height:38px; border-radius:50%;
-  background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.6);
-  color:var(--white); font-size:1.05rem; cursor:pointer; padding:0;
-  display:flex; align-items:center; justify-content:center;
-}
-.tab-azioni button.evidenziato{
-  background:var(--accento-600); border-color:var(--accento-600);
-}:root{
-  /* ... aggiungi accanto agli altri colori "materia" ... */
-  --org-100:#ffe1a8;
-  --org-600:#e2932c;
 }
 
 /* ==========================================================================
-   Organizzazione — termometro e scheda a 3 colonne
+   Organizzazione — termometro dei progressi e scheda a 3 colonne
    ========================================================================== */
-.subject-tab--organizzazione{ background:var(--org-600); }
-.tool-card--organizzazione .emoji-badge{ background:var(--org-100); }
-
 .thermo-track{
   width:100%;
   height:28px;
@@ -652,7 +744,7 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 }
 .thermo-fill{
   height:100%;
-  background:linear-gradient(90deg, var(--org-100), var(--org-600));
+  background:linear-gradient(90deg, var(--tema-100), var(--tema-600));
   border-radius:999px 0 0 999px;
   transition:width .3s ease;
 }
@@ -681,7 +773,7 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 }
 .col3-row input[type=checkbox]{
   width:24px; height:24px;
-  accent-color:var(--org-600);
+  accent-color:var(--tema-600);
 }
 .col3-row input[type=text]{
   margin:0;
@@ -701,7 +793,7 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
   cursor:pointer;
   padding:4px;
 }
-.col3-row .btn-rimuovi:hover{ color:var(--emozioni-600); }
+.col3-row .btn-rimuovi:hover{ color:var(--danger-600); }
 
 @media (max-width:600px){
   .col3-head{ display:none; }
@@ -719,54 +811,22 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
   .col3-row .campo-orario{ grid-area:orario; }
   .col3-row .btn-rimuovi{ grid-area:rimuovi; align-self:start; margin-top:6px; }
 }
-.history-item{ gap:8px; flex-wrap:nowrap; }
-.azioni-storico{
-  display:flex;
-  gap:6px;
-  flex-shrink:0;
-}
-.icon-btn{
-  border:2px solid var(--ink);
-  background:var(--white);
-  border-radius:50%;
-  width:34px;
-  height:34px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-size:.95rem;
-  cursor:pointer;
-  flex-shrink:0;
-  padding:0;
-}
-.icon-btn:hover{ background:var(--paper-alt); }
-.icon-btn:disabled{ opacity:.35; cursor:not-allowed; }
-.icon-btn--danger{ border-color:var(--emozioni-600); color:var(--emozioni-600); }
-.icon-btn--danger:hover{ background:var(--emozioni-100); }
-:root{
-  /* ... accanto agli altri colori "materia" ... */
-  --attenzione-100:#c3cdf7;
-  --attenzione-600:#4a5fc4;
-   --pausa-600:#4fae7a;
-}
 
 /* ==========================================================================
    Attenzione — timer a blocchi + checklist "prima di iniziare"
    ========================================================================== */
-.subject-tab--attenzione{ background:var(--attenzione-600); }
-.tool-card--attenzione .emoji-badge{ background:var(--attenzione-100); }
-
 .timer-wrap{
   display:flex; flex-direction:column; align-items:center;
   gap:16px; padding:6px 0 4px;
 }
 .timer-ring{
   width:230px; height:230px; border-radius:50%;
-  background:conic-gradient(var(--anello-colore, var(--attenzione-600)) calc(var(--percent, 0) * 1%), var(--paper-alt) 0);
+  background:conic-gradient(var(--anello-colore, var(--tema-600)) calc(var(--percent, 0) * 1%), var(--paper-alt) 0);
   display:flex; align-items:center; justify-content:center;
   position:relative; margin:0 auto;
   transition:background .2s linear;
 }
+/* Durante la pausa l'anello cambia colore (colore semantico, non di sezione) */
 .timer-ring.fase-pausa{ --anello-colore: var(--pausa-600); }
 .timer-ring.fase-pausa::before{ border-color:var(--pausa-600); }
 .timer-ring::before{
@@ -802,22 +862,40 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 .timer-controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
 .blocchi-oggi{ font-weight:600; color:var(--ink-soft); font-size:.92rem; margin:0; }
 
-.riga-aggiungi{ display:flex; gap:8px; margin-top:12px; }
-.riga-aggiungi input[type="text"]{ flex:1; margin:0; }
-
-:root{
-  /* ... */
-  --ansia-100:#bfe0f7;
-  --ansia-600:#4f89c7;
+/* ==========================================================================
+   Componente condiviso "passi a gradini" — usato da Ansia (scala
+   dell'esposizione) e Autostima (obiettivo a passi). Segue sempre il
+   tema della pagina in cui si trova.
+   ========================================================================== */
+.passo-riga{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 4px; border-bottom:1px solid var(--rule-soft);
+  flex-wrap:wrap;
 }
+.passo-riga:last-child{ border-bottom:none; }
+.passo-numero{
+  width:28px; height:28px; border-radius:50%;
+  background:var(--tema-100); color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:.85rem; flex-shrink:0;
+}
+.passo-riga.completato .passo-numero{ background:var(--tema-600); color:var(--white); }
+.passo-riga input[type="text"]{ flex:1; min-width:120px; margin:0; }
+.passo-riga.completato input[type="text"]{ text-decoration:line-through; color:var(--ink-soft); background:var(--paper-alt); }
+.passo-riga input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--tema-600); flex-shrink:0; }
+.passo-azioni{ display:flex; gap:2px; flex-shrink:0; }
+.passo-azioni button{ border:none; background:transparent; color:var(--ink-soft); font-size:1rem; cursor:pointer; padding:4px; }
+.passo-azioni button:disabled{ opacity:.25; cursor:not-allowed; }
+.passo-azioni .btn-rimuovi:hover{ color:var(--danger-600); }
+
+/* Testi affiancati dentro un passo (usato da Autostima per il campo "festa") */
+.passo-testi{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
+.campo-festa{ font-size:.85rem; color:var(--ink-soft); }
+.campo-festa::placeholder{ font-style:italic; }
 
 /* ==========================================================================
-   Ansia scolastica — diario dell'accomodamento + scala dell'esposizione
+   Ansia scolastica — diario dell'accomodamento familiare
    ========================================================================== */
-.subject-tab--ansia{ background:var(--ansia-600); }
-.tool-card--ansia .emoji-badge{ background:var(--ansia-100); }
-
-/* Diario dell'accomodamento familiare */
 .tabella-accomodamento-head, .riga-accomodamento{
   display:grid;
   grid-template-columns: 90px 1.4fr 1.4fr 100px 32px;
@@ -835,10 +913,10 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 .riga-accomodamento input[type="text"]{ margin:0; padding:8px 10px; font-size:.9rem; }
 .riga-accomodamento.provato input[type="text"]{ text-decoration:line-through; color:var(--ink-soft); background:var(--paper-alt); }
 .riga-accomodamento .provato-wrap{ display:flex; align-items:center; gap:6px; }
-.riga-accomodamento input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--ansia-600); flex-shrink:0; }
+.riga-accomodamento input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--tema-600); flex-shrink:0; }
 .riga-accomodamento .provato-label{ font-size:.75rem; color:var(--ink-soft); }
 .riga-accomodamento .btn-rimuovi{ border:none; background:transparent; color:var(--ink-soft); font-size:1.1rem; cursor:pointer; padding:4px; justify-self:center; }
-.riga-accomodamento .btn-rimuovi:hover{ color:var(--emozioni-600); }
+.riga-accomodamento .btn-rimuovi:hover{ color:var(--danger-600); }
 
 @media (max-width:600px){
   .tabella-accomodamento-head{ display:none; }
@@ -858,40 +936,9 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
   .riga-accomodamento .btn-rimuovi{ grid-area:rimuovi; }
 }
 
-/* Scala graduale dell'esposizione */
-.passo-riga{
-  display:flex; align-items:center; gap:10px;
-  padding:10px 4px; border-bottom:1px solid var(--rule-soft);
-  flex-wrap:wrap;
-}
-.passo-riga:last-child{ border-bottom:none; }
-.passo-numero{
-  width:28px; height:28px; border-radius:50%;
-  background:var(--ansia-100); color:var(--ink);
-  display:flex; align-items:center; justify-content:center;
-  font-weight:700; font-size:.85rem; flex-shrink:0;
-}
-.passo-riga.completato .passo-numero{ background:var(--ansia-600); color:var(--white); }
-.passo-riga input[type="text"]{ flex:1; min-width:120px; margin:0; }
-.passo-riga.completato input[type="text"]{ text-decoration:line-through; color:var(--ink-soft); background:var(--paper-alt); }
-.passo-riga input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--ansia-600); flex-shrink:0; }
-.passo-azioni{ display:flex; gap:2px; flex-shrink:0; }
-.passo-azioni button{ border:none; background:transparent; color:var(--ink-soft); font-size:1rem; cursor:pointer; padding:4px; }
-.passo-azioni button:disabled{ opacity:.25; cursor:not-allowed; }
-.passo-azioni .btn-rimuovi:hover{ color:var(--emozioni-600); }
-:root{
-  /* ... */
-  --autostima-100:#ffcdb2;
-  --autostima-600:#e2725b;
-}
-
 /* ==========================================================================
-   Autostima — diario dei tentativi + obiettivo a gradini
+   Autostima — diario dei tentativi
    ========================================================================== */
-.subject-tab--autostima{ background:var(--autostima-600); }
-.tool-card--autostima .emoji-badge{ background:var(--autostima-100); }
-
-/* Diario dei tentativi */
 .tabella-tentativi-head, .riga-tentativo{
   display:grid;
   grid-template-columns: 90px 1.3fr 1.3fr 32px;
@@ -908,7 +955,7 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 .riga-tentativo .data-riga{ font-weight:600; color:var(--ink-soft); font-size:.85rem; }
 .riga-tentativo input[type="text"]{ margin:0; padding:8px 10px; font-size:.9rem; }
 .riga-tentativo .btn-rimuovi{ border:none; background:transparent; color:var(--ink-soft); font-size:1.1rem; cursor:pointer; padding:4px; justify-self:center; }
-.riga-tentativo .btn-rimuovi:hover{ color:var(--emozioni-600); }
+.riga-tentativo .btn-rimuovi:hover{ color:var(--danger-600); }
 
 @media (max-width:600px){
   .tabella-tentativi-head{ display:none; }
@@ -925,9 +972,3 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
   .riga-tentativo .campo-provato{ grid-area:provato; }
   .riga-tentativo .btn-rimuovi{ grid-area:rimuovi; }
 }
-
-/* Obiettivo a gradini: riusa .passo-riga/.passo-numero/.passo-azioni già
-   definiti per la scala dell'esposizione, aggiunge solo il campo "festa". */
-.passo-testi{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
-.campo-festa{ font-size:.85rem; color:var(--ink-soft); }
-.campo-festa::placeholder{ font-style:italic; }
