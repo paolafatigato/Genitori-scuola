@@ -64,9 +64,12 @@ document.querySelectorAll("#scala-emozioni button").forEach(b => {
 });
 
 proteggiPagina("famiglia", (user) => {
+  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/emozioni.html", snap.data()?.strumenti_attivi);
+  });
+
   const oggi = todayId();
   const oggiRef = doc(db, "famiglie", user.uid, "voci_emozioni", oggi);
-
   onSnapshot(oggiRef, (snap) => {
     if(snap.exists()){
       const d = snap.data();

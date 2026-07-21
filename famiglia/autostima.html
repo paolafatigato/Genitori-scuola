@@ -243,8 +243,11 @@ obiettivoInput.addEventListener("input", (e) => { obiettivo = e.target.value; sa
 
 // --- Avvio pagina ------------------------------------------------------------
 proteggiPagina("famiglia", (user) => {
-  tentativiRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "tentativi");
-  obiettivoRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "obiettivo");
+  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/autostima.html", snap.data()?.strumenti_attivi);
+  });
+
+  tentativiRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "tentativi");  obiettivoRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "obiettivo");
 
   (async () => {
     const snap = await getDoc(tentativiRef);
