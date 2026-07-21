@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ansia scolastica — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html" class="active"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
+    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/ansia.html"><span class="icon">🌤️</span>Ansia</a>
+    <a href="/famiglia/autostima.html"><span class="icon">🌱</span>Autostima</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--ansia"><span class="emoji">🌤️</span> Ansia scolastica</div>
+
+      <div class="notebook-card">
+        <h2>Diario dell'accomodamento familiare</h2>
+        <p class="helper-text">Quando notate un comportamento che aiuta ad evitare l'ansia sul momento ma la mantiene nel tempo, annotatelo qui con una frase alternativa da provare. La data si registra da sola; spuntate "Provato" quando (e se) ci riuscite.</p>
+
+        <div class="tabella-accomodamento-head">
+          <span>Data</span>
+          <span>Comportamento di accomodamento</span>
+          <span>Frase alternativa da provare</span>
+          <span>Provato</span>
+          <span></span>
+        </div>
+        <div id="accomodamento-lista"></div>
+        <div class="empty-state" id="accomodamento-empty">
+          <span class="emoji">📝</span>
+          Nessuna voce ancora. Tocca "+ Aggiungi" per iniziare.
+        </div>
+        <button class="btn btn-sm btn-accent" id="btn-aggiungi-accomodamento" style="margin-top:12px;">+ Aggiungi</button>
+      </div>
+
+      <div class="notebook-card">
+        <h2>Scala graduale dell'esposizione</h2>
+        <p class="helper-text">Scomponete la situazione che fa paura in passi piccoli, dal più facile al più difficile. Si avanza un passo alla volta, senza fretta: va benissimo restare su un passo per un po'.</p>
+        <p class="helper-text" style="font-style:italic;">Esempio (paura di fare domande in classe): 1. Scrivere la domanda su un foglio — 2. Farla leggere a un genitore — 3. Dirla a bassa voce in una stanza vuota — 4. Farla a un amico — 5. Alzare la mano senza parlare — 6. Farla ad alta voce in classe.</p>
+
+        <label for="situazione-temuta">Situazione temuta</label>
+        <input type="text" id="situazione-temuta" placeholder="Es. Fare una domanda in classe">
+
+        <div class="section-title" style="margin:14px 0 10px;">
+          <h3 style="margin:0;">I passi, dal più facile al più difficile</h3>
+          <button class="btn btn-sm btn-accent" id="btn-aggiungi-passo">+ Aggiungi passo</button>
+        </div>
+        <div id="passi-lista"></div>
+        <div class="empty-state" id="passi-empty">
+          <span class="emoji">🪜</span>
+          Nessun passo ancora. Tocca "+ Aggiungi passo" per iniziare a costruire la scala.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+let accomodamentoRef = null;
+let esposizioneRef = null;
+
+// --- Diario dell'accomodamento familiare ------------------------------------
+let vociAccomodamento = []; // { id, data, comportamento, frase_alternativa, provato }
+let salvaAccomodamentoTimeout = null;
+
+const listaAccomodamentoEl = document.getElementById("accomodamento-lista");
+const accomodamentoEmptyEl = document.getElementById("accomodamento-empty");
+
+function salvaAccomodamento(){
+  clearTimeout(salvaAccomodamentoTimeout);
+  salvaAccomodamentoTimeout = setTimeout(async () => {
+    try{
+      await setDoc(accomodamentoRef, { voci: vociAccomodamento, aggiornato_il: new Date().toISOString() }, { merge: true });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+function aggiornaEmptyAccomodamento(){
+  accomodamentoEmptyEl.style.display = vociAccomodamento.length ? "none" : "";
+}
+
+function creaRigaAccomodamento(riga){
+  const row = document.createElement("div");
+  row.className = "riga-accomodamento" + (riga.provato ? " provato" : "");
+  row.dataset.id = riga.id;
+  row.innerHTML = `
+    <span class="data-riga">${formatDateBreve(riga.data)}</span>
+    <input type="text" class="campo-comportamento" placeholder="es. Rispondo io al posto suo per evitargli l'ansia" value="${riga.comportamento ?? ""}">
+    <input type="text" class="campo-frase" placeholder='es. "Provaci tu, ti aspetto qui vicino"' value="${riga.frase_alternativa ?? ""}">
+    <span class="provato-wrap">
+      <input type="checkbox" ${riga.provato ? "checked" : ""} aria-label="Provato">
+      <span class="provato-label">Provato</span>
+    </span>
+    <button class="btn-rimuovi" title="Rimuovi voce" aria-label="Rimuovi voce">✕</button>
+  `;
+
+  row.querySelector(".campo-comportamento").addEventListener("input", (e) => { riga.comportamento = e.target.value; salvaAccomodamento(); });
+  row.querySelector(".campo-frase").addEventListener("input", (e) => { riga.frase_alternativa = e.target.value; salvaAccomodamento(); });
+  row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+    riga.provato = e.target.checked;
+    row.classList.toggle("provato", riga.provato);
+    salvaAccomodamento();
+  });
+  row.querySelector(".btn-rimuovi").addEventListener("click", () => {
+    vociAccomodamento = vociAccomodamento.filter(r => r.id !== riga.id);
+    row.remove();
+    aggiornaEmptyAccomodamento();
+    salvaAccomodamento();
+  });
+
+  return row;
+}
+
+function renderAccomodamento(){
+  listaAccomodamentoEl.innerHTML = "";
+  vociAccomodamento.forEach(r => listaAccomodamentoEl.appendChild(creaRigaAccomodamento(r)));
+  aggiornaEmptyAccomodamento();
+}
+
+document.getElementById("btn-aggiungi-accomodamento").addEventListener("click", () => {
+  const nuova = { id: crypto.randomUUID(), data: todayId(), comportamento: "", frase_alternativa: "", provato: false };
+  vociAccomodamento.push(nuova);
+  listaAccomodamentoEl.appendChild(creaRigaAccomodamento(nuova));
+  aggiornaEmptyAccomodamento();
+  salvaAccomodamento();
+  listaAccomodamentoEl.lastElementChild.querySelector(".campo-comportamento").focus();
+});
+
+// --- Scala graduale dell'esposizione -----------------------------------------
+let situazione = "";
+let passi = []; // { id, testo, completato }
+let salvaEsposizioneTimeout = null;
+
+const listaPassiEl = document.getElementById("passi-lista");
+const passiEmptyEl = document.getElementById("passi-empty");
+const situazioneInput = document.getElementById("situazione-temuta");
+
+function salvaEsposizione(){
+  clearTimeout(salvaEsposizioneTimeout);
+  salvaEsposizioneTimeout = setTimeout(async () => {
+    try{
+      await setDoc(esposizioneRef, { situazione, passi, aggiornato_il: new Date().toISOString() }, { merge: true });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+function aggiornaEmptyPassi(){
+  passiEmptyEl.style.display = passi.length ? "none" : "";
+}
+
+function creaRigaPasso(passo, indice){
+  const row = document.createElement("div");
+  row.className = "passo-riga" + (passo.completato ? " completato" : "");
+  row.dataset.id = passo.id;
+
+  const primo = indice === 0;
+  const ultimo = indice === passi.length - 1;
+
+  row.innerHTML = `
+    <span class="passo-numero">${indice + 1}</span>
+    <input type="checkbox" ${passo.completato ? "checked" : ""} aria-label="Passo completato">
+    <input type="text" class="campo-passo" placeholder="es. Scrivere la domanda su un foglio" value="${passo.testo ?? ""}">
+    <span class="passo-azioni">
+      <button type="button" class="btn-su" title="Sposta su" ${primo ? "disabled" : ""}>↑</button>
+      <button type="button" class="btn-giu" title="Sposta giù" ${ultimo ? "disabled" : ""}>↓</button>
+      <button type="button" class="btn-rimuovi" title="Rimuovi passo" aria-label="Rimuovi passo">✕</button>
+    </span>
+  `;
+
+  row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+    passo.completato = e.target.checked;
+    row.classList.toggle("completato", passo.completato);
+    salvaEsposizione();
+  });
+  row.querySelector(".campo-passo").addEventListener("input", (e) => { passo.testo = e.target.value; salvaEsposizione(); });
+  row.querySelector(".btn-su").addEventListener("click", () => spostaPasso(passo.id, -1));
+  row.querySelector(".btn-giu").addEventListener("click", () => spostaPasso(passo.id, 1));
+  row.querySelector(".btn-rimuovi").addEventListener("click", () => {
+    passi = passi.filter(p => p.id !== passo.id);
+    renderPassi();
+    salvaEsposizione();
+  });
+
+  return row;
+}
+
+function spostaPasso(id, direzione){
+  const i = passi.findIndex(p => p.id === id);
+  const nuovoIndice = i + direzione;
+  if(nuovoIndice < 0 || nuovoIndice >= passi.length) return;
+  [passi[i], passi[nuovoIndice]] = [passi[nuovoIndice], passi[i]];
+  renderPassi();
+  salvaEsposizione();
+}
+
+function renderPassi(){
+  listaPassiEl.innerHTML = "";
+  passi.forEach((p, i) => listaPassiEl.appendChild(creaRigaPasso(p, i)));
+  aggiornaEmptyPassi();
+}
+
+document.getElementById("btn-aggiungi-passo").addEventListener("click", () => {
+  const nuovo = { id: crypto.randomUUID(), testo: "", completato: false };
+  passi.push(nuovo);
+  renderPassi();
+  salvaEsposizione();
+  listaPassiEl.lastElementChild.querySelector(".campo-passo").focus();
+});
+
+situazioneInput.addEventListener("input", (e) => { situazione = e.target.value; salvaEsposizione(); });
+// Righe/passi vuoti pronti da compilare, usati solo la primissima volta
+// che si apre la pagina (se non è mai stato salvato nulla).
+function generaRigheVuoteAccomodamento(n){
+  const out = [];
+  for(let i = 0; i < n; i++){
+    out.push({ id: crypto.randomUUID(), data: todayId(), comportamento: "", frase_alternativa: "", provato: false });
+  }
+  return out;
+}
+
+function generaPassiVuoti(n){
+  const out = [];
+  for(let i = 0; i < n; i++){
+    out.push({ id: crypto.randomUUID(), testo: "", completato: false });
+  }
+  return out;
+}
+// --- Avvio pagina ------------------------------------------------------------
+// DOPO
+proteggiPagina("famiglia", (user) => {
+  accomodamentoRef = doc(db, "famiglie", user.uid, "strumenti_ansia", "accomodamento");
+  esposizioneRef = doc(db, "famiglie", user.uid, "strumenti_ansia", "esposizione");
+
+  (async () => {
+    const snap = await getDoc(accomodamentoRef);
+    vociAccomodamento = snap.exists() ? (snap.data().voci || []) : generaRigheVuoteAccomodamento(4);
+    renderAccomodamento();
+  })();
+
+  (async () => {
+    const snap = await getDoc(esposizioneRef);
+    const dati = snap.exists() ? snap.data() : null;
+    situazione = dati?.situazione || "";
+    passi = dati ? (dati.passi || []) : generaPassiVuoti(5);
+    situazioneInput.value = situazione;
+    renderPassi();
+  })();
+});
+</script>
+</body>
+</html>

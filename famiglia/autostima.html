@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Autostima — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
+    <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
+    <a href="/famiglia/ansia.html"><span class="icon">🌤️</span>Ansia</a>
+    <a href="/famiglia/autostima.html" class="active"><span class="icon">🌱</span>Autostima</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--autostima"><span class="emoji">🌱</span> Autostima</div>
+
+      <div class="notebook-card">
+        <h2>Diario dei tentativi</h2>
+        <p class="helper-text">Una volta a settimana, annotate un compito difficile e cosa avete provato per affrontarlo — indipendentemente da come è andata a finire. Conta il tentativo, non il risultato.</p>
+
+        <div class="tabella-tentativi-head">
+          <span>Data</span>
+          <span>Compito difficile</span>
+          <span>Cosa ho provato</span>
+          <span></span>
+        </div>
+        <div id="tentativi-lista"></div>
+        <div class="empty-state" id="tentativi-empty">
+          <span class="emoji">📝</span>
+          Nessun tentativo ancora. Tocca "+ Aggiungi" per iniziare.
+        </div>
+        <button class="btn btn-sm btn-accent" id="btn-aggiungi-tentativo" style="margin-top:12px;">+ Aggiungi</button>
+      </div>
+
+      <div class="notebook-card">
+        <h2>Obiettivo scelto dal ragazzo/a</h2>
+        <p class="helper-text">Un obiettivo scelto in prima persona, anche non scolastico — imparare un trucco di skateboard, cucinare un piatto da soli, parlare di più in un gruppo di amici. Scomponetelo in passi piccoli, e decidete insieme come festeggiare ogni progresso.</p>
+
+        <label for="obiettivo-testo">Obiettivo</label>
+        <input type="text" id="obiettivo-testo" placeholder="Es. Andare in bici senza rotelle">
+
+        <div class="section-title" style="margin:14px 0 10px;">
+          <h3 style="margin:0;">I passi</h3>
+          <button class="btn btn-sm btn-accent" id="btn-aggiungi-passo">+ Aggiungi passo</button>
+        </div>
+        <div id="passi-lista"></div>
+        <div class="empty-state" id="passi-empty">
+          <span class="emoji">🪜</span>
+          Nessun passo ancora. Tocca "+ Aggiungi passo" per iniziare.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+let tentativiRef = null;
+let obiettivoRef = null;
+
+// Righe/passi vuoti pronti da compilare, usati solo la primissima volta
+// che si apre la pagina (se non è mai stato salvato nulla).
+function generaRigheVuoteTentativi(n){
+  const out = [];
+  for(let i = 0; i < n; i++){
+    out.push({ id: crypto.randomUUID(), data: todayId(), compito_difficile: "", cosa_ho_provato: "" });
+  }
+  return out;
+}
+
+function generaPassiVuoti(n){
+  const out = [];
+  for(let i = 0; i < n; i++){
+    out.push({ id: crypto.randomUUID(), testo: "", festa: "", completato: false });
+  }
+  return out;
+}
+
+// --- Diario dei tentativi ----------------------------------------------------
+let vociTentativi = []; // { id, data, compito_difficile, cosa_ho_provato }
+let salvaTentativiTimeout = null;
+
+const listaTentativiEl = document.getElementById("tentativi-lista");
+const tentativiEmptyEl = document.getElementById("tentativi-empty");
+
+function salvaTentativi(){
+  clearTimeout(salvaTentativiTimeout);
+  salvaTentativiTimeout = setTimeout(async () => {
+    try{
+      await setDoc(tentativiRef, { voci: vociTentativi, aggiornato_il: new Date().toISOString() }, { merge: true });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+function aggiornaEmptyTentativi(){
+  tentativiEmptyEl.style.display = vociTentativi.length ? "none" : "";
+}
+
+function creaRigaTentativo(riga){
+  const row = document.createElement("div");
+  row.className = "riga-tentativo";
+  row.dataset.id = riga.id;
+  row.innerHTML = `
+    <span class="data-riga">${formatDateBreve(riga.data)}</span>
+    <input type="text" class="campo-compito" placeholder="es. Chiedere aiuto alla maestra" value="${riga.compito_difficile ?? ""}">
+    <input type="text" class="campo-provato" placeholder="es. Ho alzato la mano due volte" value="${riga.cosa_ho_provato ?? ""}">
+    <button class="btn-rimuovi" title="Rimuovi tentativo" aria-label="Rimuovi tentativo">✕</button>
+  `;
+
+  row.querySelector(".campo-compito").addEventListener("input", (e) => { riga.compito_difficile = e.target.value; salvaTentativi(); });
+  row.querySelector(".campo-provato").addEventListener("input", (e) => { riga.cosa_ho_provato = e.target.value; salvaTentativi(); });
+  row.querySelector(".btn-rimuovi").addEventListener("click", () => {
+    vociTentativi = vociTentativi.filter(r => r.id !== riga.id);
+    row.remove();
+    aggiornaEmptyTentativi();
+    salvaTentativi();
+  });
+
+  return row;
+}
+
+function renderTentativi(){
+  listaTentativiEl.innerHTML = "";
+  vociTentativi.forEach(r => listaTentativiEl.appendChild(creaRigaTentativo(r)));
+  aggiornaEmptyTentativi();
+}
+
+document.getElementById("btn-aggiungi-tentativo").addEventListener("click", () => {
+  const nuova = { id: crypto.randomUUID(), data: todayId(), compito_difficile: "", cosa_ho_provato: "" };
+  vociTentativi.push(nuova);
+  listaTentativiEl.appendChild(creaRigaTentativo(nuova));
+  aggiornaEmptyTentativi();
+  salvaTentativi();
+  listaTentativiEl.lastElementChild.querySelector(".campo-compito").focus();
+});
+
+// --- Obiettivo a gradini ------------------------------------------------------
+let obiettivo = "";
+let passi = []; // { id, testo, festa, completato }
+let salvaObiettivoTimeout = null;
+
+const listaPassiEl = document.getElementById("passi-lista");
+const passiEmptyEl = document.getElementById("passi-empty");
+const obiettivoInput = document.getElementById("obiettivo-testo");
+
+function salvaObiettivo(){
+  clearTimeout(salvaObiettivoTimeout);
+  salvaObiettivoTimeout = setTimeout(async () => {
+    try{
+      await setDoc(obiettivoRef, { obiettivo, passi, aggiornato_il: new Date().toISOString() }, { merge: true });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+function aggiornaEmptyPassi(){
+  passiEmptyEl.style.display = passi.length ? "none" : "";
+}
+
+function creaRigaPasso(passo, indice){
+  const row = document.createElement("div");
+  row.className = "passo-riga" + (passo.completato ? " completato" : "");
+  row.dataset.id = passo.id;
+
+  const primo = indice === 0;
+  const ultimo = indice === passi.length - 1;
+
+  row.innerHTML = `
+    <span class="passo-numero">${indice + 1}</span>
+    <input type="checkbox" ${passo.completato ? "checked" : ""} aria-label="Passo completato">
+    <div class="passo-testi">
+      <input type="text" class="campo-passo" placeholder="es. Andare in bici con le rotelle" value="${passo.testo ?? ""}">
+      <input type="text" class="campo-festa" placeholder="Come lo festeggiamo…" value="${passo.festa ?? ""}">
+    </div>
+    <span class="passo-azioni">
+      <button type="button" class="btn-su" title="Sposta su" ${primo ? "disabled" : ""}>↑</button>
+      <button type="button" class="btn-giu" title="Sposta giù" ${ultimo ? "disabled" : ""}>↓</button>
+      <button type="button" class="btn-rimuovi" title="Rimuovi passo" aria-label="Rimuovi passo">✕</button>
+    </span>
+  `;
+
+  row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
+    passo.completato = e.target.checked;
+    row.classList.toggle("completato", passo.completato);
+    salvaObiettivo();
+  });
+  row.querySelector(".campo-passo").addEventListener("input", (e) => { passo.testo = e.target.value; salvaObiettivo(); });
+  row.querySelector(".campo-festa").addEventListener("input", (e) => { passo.festa = e.target.value; salvaObiettivo(); });
+  row.querySelector(".btn-su").addEventListener("click", () => spostaPasso(passo.id, -1));
+  row.querySelector(".btn-giu").addEventListener("click", () => spostaPasso(passo.id, 1));
+  row.querySelector(".btn-rimuovi").addEventListener("click", () => {
+    passi = passi.filter(p => p.id !== passo.id);
+    renderPassi();
+    salvaObiettivo();
+  });
+
+  return row;
+}
+
+function spostaPasso(id, direzione){
+  const i = passi.findIndex(p => p.id === id);
+  const nuovoIndice = i + direzione;
+  if(nuovoIndice < 0 || nuovoIndice >= passi.length) return;
+  [passi[i], passi[nuovoIndice]] = [passi[nuovoIndice], passi[i]];
+  renderPassi();
+  salvaObiettivo();
+}
+
+function renderPassi(){
+  listaPassiEl.innerHTML = "";
+  passi.forEach((p, i) => listaPassiEl.appendChild(creaRigaPasso(p, i)));
+  aggiornaEmptyPassi();
+}
+
+document.getElementById("btn-aggiungi-passo").addEventListener("click", () => {
+  const nuovo = { id: crypto.randomUUID(), testo: "", festa: "", completato: false };
+  passi.push(nuovo);
+  renderPassi();
+  salvaObiettivo();
+  listaPassiEl.lastElementChild.querySelector(".campo-passo").focus();
+});
+
+obiettivoInput.addEventListener("input", (e) => { obiettivo = e.target.value; salvaObiettivo(); });
+
+// --- Avvio pagina ------------------------------------------------------------
+proteggiPagina("famiglia", (user) => {
+  tentativiRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "tentativi");
+  obiettivoRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "obiettivo");
+
+  (async () => {
+    const snap = await getDoc(tentativiRef);
+    vociTentativi = snap.exists() ? (snap.data().voci || []) : generaRigheVuoteTentativi(3);
+    renderTentativi();
+  })();
+
+  (async () => {
+    const snap = await getDoc(obiettivoRef);
+    const dati = snap.exists() ? snap.data() : null;
+    obiettivo = dati?.obiettivo || "";
+    passi = dati ? (dati.passi || []) : generaPassiVuoti(3);
+    obiettivoInput.value = obiettivo;
+    renderPassi();
+  })();
+});
+</script>
+</body>
+</html>

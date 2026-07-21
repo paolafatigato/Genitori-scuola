@@ -17,6 +17,7 @@
     <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
     <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
     <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/ansia.html"><span class="icon">🌤️</span>Ansia</a>
     <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
     <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
     <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
@@ -168,6 +169,7 @@ function aggiornaDisplay(){
 
 function aggiornaFaseUI(){
   ringEl.classList.toggle("in-pausa", stato === "in_pausa_manuale");
+  ringEl.classList.toggle("fase-pausa", fase === "pausa");
 
   if(stato === "pronto" && fase === "lavoro") faseEl.textContent = "Pronto";
   else if(fase === "lavoro") faseEl.textContent = stato === "in_pausa_manuale" ? "Lavoro — in pausa" : "Lavoro 🎯";

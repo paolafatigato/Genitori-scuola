@@ -747,6 +747,7 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
   /* ... accanto agli altri colori "materia" ... */
   --attenzione-100:#c3cdf7;
   --attenzione-600:#4a5fc4;
+   --pausa-600:#4fae7a;
 }
 
 /* ==========================================================================
@@ -761,11 +762,13 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 }
 .timer-ring{
   width:230px; height:230px; border-radius:50%;
-  background:conic-gradient(var(--attenzione-600) calc(var(--percent, 0) * 1%), var(--paper-alt) 0);
+  background:conic-gradient(var(--anello-colore, var(--attenzione-600)) calc(var(--percent, 0) * 1%), var(--paper-alt) 0);
   display:flex; align-items:center; justify-content:center;
   position:relative; margin:0 auto;
   transition:background .2s linear;
 }
+.timer-ring.fase-pausa{ --anello-colore: var(--pausa-600); }
+.timer-ring.fase-pausa::before{ border-color:var(--pausa-600); }
 .timer-ring::before{
   content:""; position:absolute; inset:16px;
   background:var(--paper); border:2px solid var(--ink); border-radius:50%;
@@ -801,3 +804,130 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 
 .riga-aggiungi{ display:flex; gap:8px; margin-top:12px; }
 .riga-aggiungi input[type="text"]{ flex:1; margin:0; }
+
+:root{
+  /* ... */
+  --ansia-100:#bfe0f7;
+  --ansia-600:#4f89c7;
+}
+
+/* ==========================================================================
+   Ansia scolastica — diario dell'accomodamento + scala dell'esposizione
+   ========================================================================== */
+.subject-tab--ansia{ background:var(--ansia-600); }
+.tool-card--ansia .emoji-badge{ background:var(--ansia-100); }
+
+/* Diario dell'accomodamento familiare */
+.tabella-accomodamento-head, .riga-accomodamento{
+  display:grid;
+  grid-template-columns: 90px 1.4fr 1.4fr 100px 32px;
+  gap:8px; align-items:center;
+  padding:10px 4px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.tabella-accomodamento-head{
+  font-size:.72rem; font-weight:700; color:var(--ink-soft);
+  text-transform:uppercase; letter-spacing:.02em;
+  border-bottom:2px solid var(--ink);
+}
+.riga-accomodamento:last-child{ border-bottom:none; }
+.riga-accomodamento .data-riga{ font-weight:600; color:var(--ink-soft); font-size:.85rem; }
+.riga-accomodamento input[type="text"]{ margin:0; padding:8px 10px; font-size:.9rem; }
+.riga-accomodamento.provato input[type="text"]{ text-decoration:line-through; color:var(--ink-soft); background:var(--paper-alt); }
+.riga-accomodamento .provato-wrap{ display:flex; align-items:center; gap:6px; }
+.riga-accomodamento input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--ansia-600); flex-shrink:0; }
+.riga-accomodamento .provato-label{ font-size:.75rem; color:var(--ink-soft); }
+.riga-accomodamento .btn-rimuovi{ border:none; background:transparent; color:var(--ink-soft); font-size:1.1rem; cursor:pointer; padding:4px; justify-self:center; }
+.riga-accomodamento .btn-rimuovi:hover{ color:var(--emozioni-600); }
+
+@media (max-width:600px){
+  .tabella-accomodamento-head{ display:none; }
+  .riga-accomodamento{
+    grid-template-columns: 1fr 32px;
+    grid-template-areas:
+      "data rimuovi"
+      "comportamento comportamento"
+      "frase frase"
+      "provato provato";
+    row-gap:6px;
+  }
+  .riga-accomodamento .data-riga{ grid-area:data; align-self:center; }
+  .riga-accomodamento .campo-comportamento{ grid-area:comportamento; }
+  .riga-accomodamento .campo-frase{ grid-area:frase; }
+  .riga-accomodamento .provato-wrap{ grid-area:provato; }
+  .riga-accomodamento .btn-rimuovi{ grid-area:rimuovi; }
+}
+
+/* Scala graduale dell'esposizione */
+.passo-riga{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 4px; border-bottom:1px solid var(--rule-soft);
+  flex-wrap:wrap;
+}
+.passo-riga:last-child{ border-bottom:none; }
+.passo-numero{
+  width:28px; height:28px; border-radius:50%;
+  background:var(--ansia-100); color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:.85rem; flex-shrink:0;
+}
+.passo-riga.completato .passo-numero{ background:var(--ansia-600); color:var(--white); }
+.passo-riga input[type="text"]{ flex:1; min-width:120px; margin:0; }
+.passo-riga.completato input[type="text"]{ text-decoration:line-through; color:var(--ink-soft); background:var(--paper-alt); }
+.passo-riga input[type="checkbox"]{ width:24px; height:24px; accent-color:var(--ansia-600); flex-shrink:0; }
+.passo-azioni{ display:flex; gap:2px; flex-shrink:0; }
+.passo-azioni button{ border:none; background:transparent; color:var(--ink-soft); font-size:1rem; cursor:pointer; padding:4px; }
+.passo-azioni button:disabled{ opacity:.25; cursor:not-allowed; }
+.passo-azioni .btn-rimuovi:hover{ color:var(--emozioni-600); }
+:root{
+  /* ... */
+  --autostima-100:#ffcdb2;
+  --autostima-600:#e2725b;
+}
+
+/* ==========================================================================
+   Autostima — diario dei tentativi + obiettivo a gradini
+   ========================================================================== */
+.subject-tab--autostima{ background:var(--autostima-600); }
+.tool-card--autostima .emoji-badge{ background:var(--autostima-100); }
+
+/* Diario dei tentativi */
+.tabella-tentativi-head, .riga-tentativo{
+  display:grid;
+  grid-template-columns: 90px 1.3fr 1.3fr 32px;
+  gap:8px; align-items:center;
+  padding:10px 4px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.tabella-tentativi-head{
+  font-size:.72rem; font-weight:700; color:var(--ink-soft);
+  text-transform:uppercase; letter-spacing:.02em;
+  border-bottom:2px solid var(--ink);
+}
+.riga-tentativo:last-child{ border-bottom:none; }
+.riga-tentativo .data-riga{ font-weight:600; color:var(--ink-soft); font-size:.85rem; }
+.riga-tentativo input[type="text"]{ margin:0; padding:8px 10px; font-size:.9rem; }
+.riga-tentativo .btn-rimuovi{ border:none; background:transparent; color:var(--ink-soft); font-size:1.1rem; cursor:pointer; padding:4px; justify-self:center; }
+.riga-tentativo .btn-rimuovi:hover{ color:var(--emozioni-600); }
+
+@media (max-width:600px){
+  .tabella-tentativi-head{ display:none; }
+  .riga-tentativo{
+    grid-template-columns: 1fr 32px;
+    grid-template-areas:
+      "data rimuovi"
+      "compito compito"
+      "provato provato";
+    row-gap:6px;
+  }
+  .riga-tentativo .data-riga{ grid-area:data; align-self:center; }
+  .riga-tentativo .campo-compito{ grid-area:compito; }
+  .riga-tentativo .campo-provato{ grid-area:provato; }
+  .riga-tentativo .btn-rimuovi{ grid-area:rimuovi; }
+}
+
+/* Obiettivo a gradini: riusa .passo-riga/.passo-numero/.passo-azioni già
+   definiti per la scala dell'esposizione, aggiunge solo il campo "festa". */
+.passo-testi{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:140px; }
+.campo-festa{ font-size:.85rem; color:var(--ink-soft); }
+.campo-festa::placeholder{ font-style:italic; }

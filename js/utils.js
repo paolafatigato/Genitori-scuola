@@ -71,7 +71,9 @@ export const STRUMENTI_DISPONIBILI = [
   { chiave: "attenzione", nome: "Attenzione", emoji: "🎯", href: "/famiglia/attenzione.html" },
   { chiave: "organizzazione", nome: "Organizzazione", emoji: "📋", href: "/famiglia/organizzazione.html" },
   { chiave: "emozioni", nome: "Emozioni", emoji: "🌡️", href: "/famiglia/emozioni.html" },
-  { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "/famiglia/sonno.html" }
+  { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "/famiglia/sonno.html" },
+  { chiave: "autostima", nome: "Autostima", emoji: "🌱", href: "/famiglia/autostima.html" },
+  { chiave: "ansia", nome: "Ansia scolastica", emoji: "🌤️", href: "/famiglia/ansia.html" }
 ];
 
 // Accetta sia il vecchio formato {zaino:true,...} sia il nuovo array ordinato
