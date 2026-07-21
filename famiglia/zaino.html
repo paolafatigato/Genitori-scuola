@@ -288,10 +288,6 @@ function renderPills(container, giornoAttivo, onScegli){
 }
 
 proteggiPagina("famiglia", (user) => {
-  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
-    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/zaino.html", snap.data()?.strumenti_attivi);
-  });
-
   const famRef = doc(db, "famiglie", user.uid);
   const domaniRef = doc(db, "famiglie", user.uid, "voci_zaino", domaniId);
 
