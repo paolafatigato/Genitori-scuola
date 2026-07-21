@@ -743,3 +743,61 @@ details.materia-block summary::after{ font-size:1.1rem; }/* Input materia dentro
 .icon-btn:disabled{ opacity:.35; cursor:not-allowed; }
 .icon-btn--danger{ border-color:var(--emozioni-600); color:var(--emozioni-600); }
 .icon-btn--danger:hover{ background:var(--emozioni-100); }
+:root{
+  /* ... accanto agli altri colori "materia" ... */
+  --attenzione-100:#c3cdf7;
+  --attenzione-600:#4a5fc4;
+}
+
+/* ==========================================================================
+   Attenzione — timer a blocchi + checklist "prima di iniziare"
+   ========================================================================== */
+.subject-tab--attenzione{ background:var(--attenzione-600); }
+.tool-card--attenzione .emoji-badge{ background:var(--attenzione-100); }
+
+.timer-wrap{
+  display:flex; flex-direction:column; align-items:center;
+  gap:16px; padding:6px 0 4px;
+}
+.timer-ring{
+  width:230px; height:230px; border-radius:50%;
+  background:conic-gradient(var(--attenzione-600) calc(var(--percent, 0) * 1%), var(--paper-alt) 0);
+  display:flex; align-items:center; justify-content:center;
+  position:relative; margin:0 auto;
+  transition:background .2s linear;
+}
+.timer-ring::before{
+  content:""; position:absolute; inset:16px;
+  background:var(--paper); border:2px solid var(--ink); border-radius:50%;
+}
+.timer-inner{ position:relative; z-index:1; text-align:center; }
+.timer-tempo{
+  font-family:var(--font-display); font-size:3rem; font-weight:700;
+  color:var(--ink); line-height:1;
+}
+.timer-fase{
+  font-size:.78rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; color:var(--ink-soft); margin-top:6px;
+}
+.timer-ring.in-pausa .timer-inner{ opacity:.5; }
+
+.timer-impostazioni{ display:flex; gap:28px; justify-content:center; flex-wrap:wrap; }
+.stepper-label{
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.03em;
+  color:var(--ink-soft); margin-bottom:6px; text-align:center;
+}
+.stepper{ display:flex; align-items:center; gap:10px; }
+.stepper button{
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid var(--ink); background:var(--paper);
+  font-size:1.2rem; font-weight:700; cursor:pointer; line-height:1;
+}
+.stepper button:active{ transform:scale(.93); }
+.stepper button:disabled{ opacity:.35; cursor:not-allowed; }
+.stepper .valore{ min-width:66px; text-align:center; font-weight:700; font-size:1rem; }
+
+.timer-controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.blocchi-oggi{ font-weight:600; color:var(--ink-soft); font-size:.92rem; margin:0; }
+
+.riga-aggiungi{ display:flex; gap:8px; margin-top:12px; }
+.riga-aggiungi input[type="text"]{ flex:1; margin:0; }

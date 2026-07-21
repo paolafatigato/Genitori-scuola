@@ -65,8 +65,11 @@ export function escapeHtml(str){
 }
 // Elenco centrale degli strumenti disponibili: aggiungere qui un domani per
 // far comparire un nuovo strumento tra quelli attivabili dalle impostazioni.
+// DOPO
 export const STRUMENTI_DISPONIBILI = [
   { chiave: "zaino", nome: "Zaino", emoji: "🎒", href: "/famiglia/zaino.html" },
+  { chiave: "attenzione", nome: "Attenzione", emoji: "🎯", href: "/famiglia/attenzione.html" },
+  { chiave: "organizzazione", nome: "Organizzazione", emoji: "📋", href: "/famiglia/organizzazione.html" },
   { chiave: "emozioni", nome: "Emozioni", emoji: "🌡️", href: "/famiglia/emozioni.html" },
   { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "/famiglia/sonno.html" }
 ];

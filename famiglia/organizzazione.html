@@ -18,6 +18,7 @@
     <a href="/famiglia/organizzazione.html" class="active"><span class="icon">📋</span>Compiti</a>
     <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
     <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
     <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
   </nav>
 
@@ -70,7 +71,7 @@
 
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
-import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
+import { db, doc, getDoc, setDoc, deleteDoc } from "/js/firebase-init.js";
 import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
@@ -168,6 +169,8 @@ proteggiPagina("famiglia", (user) => {
   const oggi = todayId();
   oggiRef = doc(db, "famiglie", user.uid, "voci_organizzazione", oggi);
 
+  const datiPerGiorno = {}; // g -> array di righe di quel giorno (per "riusa")
+
   (async () => {
     const snap = await getDoc(oggiRef);
     righe = snap.exists() ? (snap.data().righe || []) : [];
@@ -188,11 +191,12 @@ proteggiPagina("famiglia", (user) => {
       const g = giorni[idx];
       if(snap.exists()){
         const dati = snap.data().righe || [];
+        datiPerGiorno[g] = dati;
         const tot = dati.length;
         const fatti = dati.filter(r => r.fatto).length;
         if(fatti > 0) giorniConAlmenoUno++;
         const perc = tot ? Math.round((fatti / tot) * 100) : 0;
-        righeStorico.push({ g, testo: `${fatti}/${tot}` });
+        righeStorico.push({ g, testo: `${fatti}/${tot}`, tot });
         barre.push({ g, perc });
       } else {
         barre.push({ g, perc: 0 });
@@ -208,13 +212,50 @@ proteggiPagina("famiglia", (user) => {
         <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
       </div>`).join("");
 
-    document.getElementById("lista-storico").innerHTML = righeStorico.length
+    const listaStoricoEl = document.getElementById("lista-storico");
+    listaStoricoEl.innerHTML = righeStorico.length
       ? righeStorico.slice().reverse().map(r => `
         <li class="history-item">
           <span class="data">${formatDateBreve(r.g)}</span>
           <span class="valore">${r.testo} completati</span>
+          <div class="azioni-storico">
+            <button class="icon-btn" data-riusa-giorno="${r.g}" title="Riusa i compiti di questo giorno" aria-label="Riusa i compiti di questo giorno" ${r.tot ? "" : "disabled"}>↻</button>
+            <button class="icon-btn icon-btn--danger" data-elimina-giorno="${r.g}" title="Elimina definitivamente questo giorno" aria-label="Elimina definitivamente questo giorno">🗑</button>
+          </div>
         </li>`).join("")
       : `<div class="empty-state"><span class="emoji">📋</span>Ancora nessuna compilazione.</div>`;
+
+    listaStoricoEl.querySelectorAll("[data-riusa-giorno]").forEach(b => b.addEventListener("click", () => riusaGiorno(b.dataset.riusaGiorno)));
+    listaStoricoEl.querySelectorAll("[data-elimina-giorno]").forEach(b => b.addEventListener("click", () => eliminaGiorno(b.dataset.eliminaGiorno)));
+  }
+
+  function riusaGiorno(g){
+    const daRiusare = datiPerGiorno[g] || [];
+    if(!daRiusare.length){ showToast("Nessun compito da riusare per questo giorno."); return; }
+    daRiusare.forEach(r => {
+      const nuova = { id: crypto.randomUUID(), compito: r.compito || "", materiale: r.materiale || "", orario: r.orario || "", fatto: false };
+      righe.push(nuova);
+      listaEl.appendChild(creaRigaEl(nuova));
+    });
+    aggiornaEmptyState();
+    aggiornaTermometro();
+    salva();
+    showToast(`${daRiusare.length} compit${daRiusare.length === 1 ? "o aggiunto" : "i aggiunti"} a oggi ✅`);
+  }
+
+  async function eliminaGiorno(g){
+    const confermato = window.confirm(`Eliminare definitivamente la scheda del ${formatDateBreve(g)}? Non si può annullare.`);
+    if(!confermato) return;
+    try{
+      await deleteDoc(doc(db, "famiglie", user.uid, "voci_organizzazione", g));
+      delete datiPerGiorno[g];
+      if(g === oggi){ righe = []; renderTutto(); }
+      showToast("Eliminato definitivamente.");
+      caricaStorico();
+    }catch(err){
+      console.error(err);
+      showToast("Eliminazione non riuscita. Riprova.");
+    }
   }
 });
 </script>

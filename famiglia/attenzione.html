@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attenzione — Il Diario Insieme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/style.css?v=1">
+</head>
+<body class="ruled-bg">
+<div class="app-shell">
+
+  <nav class="bottom-nav">
+    <a href="/famiglia/dashboard.html" class="active"><span class="icon">🏠</span>Oggi</a>
+    <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
+    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
+    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
+    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
+    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
+    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
+  </nav>
+
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <header class="topbar">
+      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
+    </header>
+
+    <main class="page">
+      <div class="subject-tab subject-tab--attenzione"><span class="emoji">🎯</span> Attenzione</div>
+
+      <div class="notebook-card">
+        <h2>Timer di lavoro</h2>
+        <p class="helper-text">Si lavora a blocchi di tempo, poi si fa una pausa. Puoi fermare o ripartire quando vuoi.</p>
+
+        <div class="timer-wrap">
+          <div class="timer-ring" id="timer-ring">
+            <div class="timer-inner">
+              <div class="timer-tempo" id="timer-tempo">20:00</div>
+              <div class="timer-fase" id="timer-fase">Pronto</div>
+            </div>
+          </div>
+
+          <div class="timer-impostazioni">
+            <div>
+              <div class="stepper-label">Blocco</div>
+              <div class="stepper">
+                <button type="button" id="blocco-giu" aria-label="Riduci durata blocco">−</button>
+                <span class="valore" id="valore-blocco">20 min</span>
+                <button type="button" id="blocco-su" aria-label="Aumenta durata blocco">+</button>
+              </div>
+            </div>
+            <div>
+              <div class="stepper-label">Pausa</div>
+              <div class="stepper">
+                <button type="button" id="pausa-giu" aria-label="Riduci durata pausa">−</button>
+                <span class="valore" id="valore-pausa">5 min</span>
+                <button type="button" id="pausa-su" aria-label="Aumenta durata pausa">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="timer-controls">
+            <button class="btn btn-primary" id="btn-avvia">▶️ Avvia</button>
+            <button class="btn btn-ghost" id="btn-pausa" style="display:none;">⏸️ Pausa</button>
+            <button class="btn btn-ghost" id="btn-riprendi" style="display:none;">▶️ Riprendi</button>
+            <button class="btn btn-ghost" id="btn-salta" style="display:none;">⏭️ Salta pausa</button>
+            <button class="btn btn-ghost" id="btn-reset">↺ Reset</button>
+          </div>
+
+          <p class="blocchi-oggi" id="blocchi-oggi">Blocchi completati oggi: 0</p>
+        </div>
+      </div>
+
+      <div class="notebook-card">
+        <h2>Prima di iniziare</h2>
+        <p class="helper-text">Qualche minuto per togliere le distrazioni aiuta a partire meglio. Spunta quello che avete fatto oggi.</p>
+        <div id="checklist-lista"></div>
+        <div class="riga-aggiungi">
+          <input type="text" id="nuova-voce" placeholder="Aggiungi un'altra cosa da controllare…">
+          <button class="btn btn-sm btn-accent" id="btn-aggiungi-voce">Aggiungi</button>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>📖 Storico (ultimi 30 giorni)</h2></div>
+      <div class="card-plain">
+        <p class="streak-note" id="riepilogo-storico"></p>
+        <div class="bar-chart" id="grafico-attenzione"></div>
+        <hr class="divider">
+        <ul class="history-list" id="lista-storico"></ul>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc, updateDoc, onSnapshot } from "/js/firebase-init.js";
+import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+
+// Checklist di base, ispirata alla scheda "riduzione delle distrazioni" della tesi.
+// Le voci aggiunte dalla famiglia (extraVoci) si sommano a queste e restano
+// salvate sul documento famiglia, così non vanno ridigitate ogni giorno.
+const CHECKLIST_BASE = [
+  "Telefono in un'altra stanza o modalità aereo",
+  "Notifiche disattivate",
+  "TV e radio spente",
+  "Musica strumentale a basso volume, se serve",
+  "Spazio di lavoro libero da altri oggetti"
+];
+
+let famRef = null;
+let oggiRef = null;
+let extraVoci = [];
+let checklistStato = {};
+let blocchiCompletatiOggi = 0;
+
+// --- Timer -----------------------------------------------------------------
+let durataBlocco = 20; // minuti
+let durataPausa = 5;   // minuti
+let fase = "lavoro";   // "lavoro" | "pausa"
+let stato = "pronto";  // "pronto" | "in_corso" | "in_pausa_manuale"
+let secondiRimasti = durataBlocco * 60;
+let intervalId = null;
+let salvaImpostazioniTimeout = null;
+
+const ringEl = document.getElementById("timer-ring");
+const tempoEl = document.getElementById("timer-tempo");
+const faseEl = document.getElementById("timer-fase");
+const btnAvvia = document.getElementById("btn-avvia");
+const btnPausa = document.getElementById("btn-pausa");
+const btnRiprendi = document.getElementById("btn-riprendi");
+const btnSalta = document.getElementById("btn-salta");
+const btnReset = document.getElementById("btn-reset");
+
+function totaleSecondiFase(){
+  return (fase === "lavoro" ? durataBlocco : durataPausa) * 60;
+}
+
+function suonaAvviso(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.15;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => { osc.stop(); ctx.close(); }, 400);
+  }catch(err){ /* niente audio disponibile, pazienza */ }
+  if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function aggiornaDisplay(){
+  const min = String(Math.floor(secondiRimasti / 60)).padStart(2, "0");
+  const sec = String(secondiRimasti % 60).padStart(2, "0");
+  tempoEl.textContent = `${min}:${sec}`;
+  const totale = totaleSecondiFase();
+  const percent = totale ? Math.round(((totale - secondiRimasti) / totale) * 100) : 0;
+  ringEl.style.setProperty("--percent", percent);
+}
+
+function aggiornaFaseUI(){
+  ringEl.classList.toggle("in-pausa", stato === "in_pausa_manuale");
+
+  if(stato === "pronto" && fase === "lavoro") faseEl.textContent = "Pronto";
+  else if(fase === "lavoro") faseEl.textContent = stato === "in_pausa_manuale" ? "Lavoro — in pausa" : "Lavoro 🎯";
+  else faseEl.textContent = stato === "in_pausa_manuale" ? "Pausa — in pausa" : "Pausa ☕";
+
+  btnAvvia.style.display = stato === "pronto" ? "" : "none";
+  btnPausa.style.display = stato === "in_corso" ? "" : "none";
+  btnRiprendi.style.display = stato === "in_pausa_manuale" ? "" : "none";
+  btnSalta.style.display = (fase === "pausa" && stato !== "pronto") ? "" : "none";
+
+  const modificabile = stato === "pronto";
+  document.querySelectorAll(".stepper button").forEach(b => b.disabled = !modificabile);
+
+  aggiornaDisplay();
+}
+
+function avviaIntervallo(){
+  clearInterval(intervalId);
+  intervalId = setInterval(tick, 1000);
+}
+
+function tick(){
+  secondiRimasti--;
+  if(secondiRimasti <= 0){
+    secondiRimasti = 0;
+    aggiornaDisplay();
+    completaFase();
+  } else {
+    aggiornaDisplay();
+  }
+}
+
+function completaFase(){
+  clearInterval(intervalId);
+  suonaAvviso();
+
+  if(fase === "lavoro"){
+    blocchiCompletatiOggi++;
+    aggiornaContatoreBlocchi();
+    salvaBlocco();
+    showToast("Blocco completato! Ora una pausa 👏");
+    fase = "pausa";
+    secondiRimasti = durataPausa * 60;
+    stato = "in_corso";
+    avviaIntervallo();
+  } else {
+    showToast("Pausa finita. Pronti per il prossimo blocco?");
+    fase = "lavoro";
+    secondiRimasti = durataBlocco * 60;
+    stato = "pronto";
+  }
+  aggiornaFaseUI();
+}
+
+btnAvvia.addEventListener("click", () => {
+  if(stato !== "pronto") return;
+  stato = "in_corso";
+  avviaIntervallo();
+  aggiornaFaseUI();
+});
+
+btnPausa.addEventListener("click", () => {
+  if(stato !== "in_corso") return;
+  clearInterval(intervalId);
+  stato = "in_pausa_manuale";
+  aggiornaFaseUI();
+});
+
+btnRiprendi.addEventListener("click", () => {
+  if(stato !== "in_pausa_manuale") return;
+  stato = "in_corso";
+  avviaIntervallo();
+  aggiornaFaseUI();
+});
+
+btnSalta.addEventListener("click", () => {
+  if(fase !== "pausa") return;
+  clearInterval(intervalId);
+  fase = "lavoro";
+  secondiRimasti = durataBlocco * 60;
+  stato = "pronto";
+  aggiornaFaseUI();
+});
+
+btnReset.addEventListener("click", () => {
+  clearInterval(intervalId);
+  fase = "lavoro";
+  stato = "pronto";
+  secondiRimasti = durataBlocco * 60;
+  aggiornaFaseUI();
+});
+
+function aggiornaStepperUI(){
+  document.getElementById("valore-blocco").textContent = `${durataBlocco} min`;
+  document.getElementById("valore-pausa").textContent = `${durataPausa} min`;
+}
+
+function salvaImpostazioniTimer(){
+  clearTimeout(salvaImpostazioniTimeout);
+  salvaImpostazioniTimeout = setTimeout(async () => {
+    try{
+      await updateDoc(famRef, { attenzione_impostazioni: { durata_blocco: durataBlocco, durata_pausa: durataPausa } });
+    }catch(err){
+      console.error(err);
+      showToast("Salvataggio non riuscito. Riprova.");
+    }
+  }, 600);
+}
+
+document.getElementById("blocco-giu").addEventListener("click", () => {
+  if(stato !== "pronto" || durataBlocco <= 5) return;
+  durataBlocco -= 5;
+  secondiRimasti = durataBlocco * 60;
+  aggiornaStepperUI(); aggiornaDisplay(); salvaImpostazioniTimer();
+});
+document.getElementById("blocco-su").addEventListener("click", () => {
+  if(stato !== "pronto" || durataBlocco >= 60) return;
+  durataBlocco += 5;
+  secondiRimasti = durataBlocco * 60;
+  aggiornaStepperUI(); aggiornaDisplay(); salvaImpostazioniTimer();
+});
+document.getElementById("pausa-giu").addEventListener("click", () => {
+  if(stato !== "pronto" || durataPausa <= 1) return;
+  durataPausa -= 1;
+  aggiornaStepperUI(); salvaImpostazioniTimer();
+});
+document.getElementById("pausa-su").addEventListener("click", () => {
+  if(stato !== "pronto" || durataPausa >= 20) return;
+  durataPausa += 1;
+  aggiornaStepperUI(); salvaImpostazioniTimer();
+});
+
+function aggiornaContatoreBlocchi(){
+  document.getElementById("blocchi-oggi").textContent = `Blocchi completati oggi: ${blocchiCompletatiOggi}`;
+}
+
+async function salvaBlocco(){
+  try{
+    await setDoc(oggiRef, { blocchi_completati: blocchiCompletatiOggi, aggiornato_il: new Date().toISOString() }, { merge: true });
+  }catch(err){
+    console.error(err);
+    showToast("Salvataggio non riuscito. Riprova.");
+  }
+}
+
+// --- Checklist "prima di iniziare" ------------------------------------------
+const listaEl = document.getElementById("checklist-lista");
+
+function renderChecklist(){
+  const tutte = [...CHECKLIST_BASE, ...extraVoci];
+  listaEl.innerHTML = tutte.map(voce => {
+    const eExtra = extraVoci.includes(voce);
+    const id = encodeURIComponent(voce);
+    const checked = checklistStato[voce] ? "checked" : "";
+    return `
+      <div class="check-row">
+        <input type="checkbox" id="voce-${id}" ${checked} data-voce="${id}">
+        <label for="voce-${id}">${voce}${eExtra ? '<span class="tag-extra">personalizzata</span>' : ""}</label>
+        ${eExtra ? `<button class="btn btn-sm btn-ghost" data-rimuovi="${id}" title="Rimuovi">✕</button>` : ""}
+      </div>`;
+  }).join("");
+
+  listaEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const voce = decodeURIComponent(cb.dataset.voce);
+      checklistStato[voce] = cb.checked;
+      try{
+        await setDoc(oggiRef, { checklist: checklistStato, aggiornato_il: new Date().toISOString() }, { merge: true });
+      }catch(err){
+        console.error(err);
+        showToast("Salvataggio non riuscito. Riprova.");
+      }
+    });
+  });
+
+  listaEl.querySelectorAll("[data-rimuovi]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const voce = decodeURIComponent(btn.dataset.rimuovi);
+      extraVoci = extraVoci.filter(v => v !== voce);
+      delete checklistStato[voce];
+      renderChecklist();
+      try{
+        await updateDoc(famRef, { checklist_attenzione_extra: extraVoci });
+        await setDoc(oggiRef, { checklist: checklistStato }, { merge: true });
+      }catch(err){
+        console.error(err);
+        showToast("Salvataggio non riuscito. Riprova.");
+      }
+    });
+  });
+}
+
+document.getElementById("btn-aggiungi-voce").addEventListener("click", async () => {
+  const input = document.getElementById("nuova-voce");
+  const testo = input.value.trim();
+  if(!testo) return;
+  if([...CHECKLIST_BASE, ...extraVoci].includes(testo)){ showToast("C'è già questa voce."); return; }
+  extraVoci.push(testo);
+  input.value = "";
+  renderChecklist();
+  try{
+    await updateDoc(famRef, { checklist_attenzione_extra: extraVoci });
+  }catch(err){
+    console.error(err);
+    showToast("Salvataggio non riuscito. Riprova.");
+  }
+});
+
+// --- Avvio pagina ------------------------------------------------------------
+proteggiPagina("famiglia", (user) => {
+  famRef = doc(db, "famiglie", user.uid);
+  const oggi = todayId();
+  oggiRef = doc(db, "famiglie", user.uid, "voci_attenzione", oggi);
+
+  onSnapshot(famRef, (snap) => {
+    const dati = snap.data() || {};
+    extraVoci = dati.checklist_attenzione_extra || [];
+    const impostazioni = dati.attenzione_impostazioni || {};
+    if(stato === "pronto"){
+      durataBlocco = impostazioni.durata_blocco || durataBlocco;
+      durataPausa = impostazioni.durata_pausa || durataPausa;
+      secondiRimasti = durataBlocco * 60;
+      aggiornaStepperUI();
+      aggiornaFaseUI();
+    }
+    renderChecklist();
+  });
+
+  (async () => {
+    const snap = await getDoc(oggiRef);
+    const dati = snap.exists() ? snap.data() : {};
+    checklistStato = dati.checklist || {};
+    blocchiCompletatiOggi = dati.blocchi_completati || 0;
+    aggiornaContatoreBlocchi();
+    renderChecklist();
+  })();
+
+  caricaStorico();
+
+  async function caricaStorico(){
+    const giorni = ultimiNGiorni(30);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_attenzione", g))));
+
+    let giorniConAlmenoUno = 0;
+    let maxBlocchi = 1;
+    const barre = [];
+    const righeStorico = [];
+
+    risultati.forEach((snap, idx) => {
+      const g = giorni[idx];
+      const n = snap.exists() ? (snap.data().blocchi_completati || 0) : 0;
+      if(n > 0) giorniConAlmenoUno++;
+      if(n > maxBlocchi) maxBlocchi = n;
+      barre.push({ g, n });
+      if(n > 0) righeStorico.push({ g, n });
+    });
+
+    document.getElementById("riepilogo-storico").textContent =
+      `Almeno un blocco in ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
+
+    document.getElementById("grafico-attenzione").innerHTML = barre.slice(-14).map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${b.n ? Math.max(Math.round((b.n / maxBlocchi) * 100), 4) : 2}%; background:var(--attenzione-100);"></div>
+        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
+      </div>`).join("");
+
+    document.getElementById("lista-storico").innerHTML = righeStorico.length
+      ? righeStorico.slice().reverse().map(r => `
+        <li class="history-item">
+          <span class="data">${formatDateBreve(r.g)}</span>
+          <span class="valore">${r.n} blocc${r.n === 1 ? "o" : "hi"} completat${r.n === 1 ? "o" : "i"}</span>
+        </li>`).join("")
+      : `<div class="empty-state"><span class="emoji">🎯</span>Ancora nessun blocco completato.</div>`;
+  }
+});
+</script>
+</body>
+</html>
