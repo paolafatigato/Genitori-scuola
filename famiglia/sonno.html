@@ -12,17 +12,7 @@
 <body class="ruled-bg tema-sonno">
 <div class="app-shell">
 
-  <nav class="bottom-nav">
-    <a href="/famiglia/dashboard.html" class="active"><span class="icon">🏠</span>Oggi</a>
-    <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
-    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
-    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
-    <a href="/famiglia/ansia.html"><span class="icon">🌤️</span>Ansia</a>
-    <a href="/famiglia/autostima.html"><span class="icon">🌱</span>Autostima</a>
-    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
-    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
-    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
-  </nav>
+ <nav class="bottom-nav" id="bottom-nav"></nav>
 
   <div style="flex:1; display:flex; flex-direction:column;">
     <header class="topbar">
@@ -83,7 +73,7 @@
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
 import { db, doc, getDoc, setDoc, onSnapshot } from "/js/firebase-init.js";
-import { todayId, formatDateBreve, ultimiNGiorni, showToast } from "/js/utils.js";
+import { todayId, formatDateLunga, showToast, normalizzaStrumentiAttivi, renderNavFamiglia } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 
@@ -123,9 +113,10 @@ proteggiPagina("famiglia", (user) => {
 
   let famData = null;
 
-  onSnapshot(famRef, (snap) => {
-    famData = snap.data() || {};
-    const routine = famData.routine_sonno;
+onSnapshot(famRef, (snap) => {
+  famData = snap.data() || {};
+  renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/sonno.html", famData.strumenti_attivi);
+  const routine = famData.routine_sonno;
     document.getElementById("routine-info").textContent = routine && routine.ora_luci && routine.ora_sveglia
       ? `La vostra routine: luci spente alle ${routine.ora_luci}, sveglia alle ${routine.ora_sveglia}.`
       : "Routine non ancora impostata: apri \"Imposta/modifica la routine\" qui sotto per definirla.";

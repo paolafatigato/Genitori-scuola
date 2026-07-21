@@ -67,7 +67,7 @@
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
 import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
-import { todayId, formatDateBreve, showToast } from "/js/utils.js";
+import { todayId, formatDateBreve, showToast, renderNavFamiglia } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 

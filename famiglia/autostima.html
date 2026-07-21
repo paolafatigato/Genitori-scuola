@@ -12,17 +12,7 @@
 <body class="ruled-bg tema-autostima">
 <div class="app-shell">
 
-  <nav class="bottom-nav">
-    <a href="/famiglia/dashboard.html"><span class="icon">🏠</span>Oggi</a>
-    <a href="/famiglia/zaino.html"><span class="icon">🎒</span>Zaino</a>
-    <a href="/famiglia/attenzione.html"><span class="icon">🎯</span>Attenzione</a>
-    <a href="/famiglia/organizzazione.html"><span class="icon">📋</span>Compiti</a>
-    <a href="/famiglia/ansia.html"><span class="icon">🌤️</span>Ansia</a>
-    <a href="/famiglia/autostima.html" class="active"><span class="icon">🌱</span>Autostima</a>
-    <a href="/famiglia/emozioni.html"><span class="icon">🌡️</span>Emozioni</a>
-    <a href="/famiglia/sonno.html"><span class="icon">🌙</span>Sonno</a>
-    <a href="/famiglia/impostazioni.html"><span class="icon">⚙️</span>Impostazioni</a>
-  </nav>
+ <nav class="bottom-nav" id="bottom-nav"></nav>
 
   <div style="flex:1; display:flex; flex-direction:column;">
     <header class="topbar">
@@ -75,7 +65,7 @@
 <script type="module">
 import { proteggiPagina, esci } from "/js/auth.js";
 import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
-import { todayId, formatDateBreve, showToast } from "/js/utils.js";
+import { todayId, formatDateBreve, showToast, renderNavFamiglia } from "/js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 
