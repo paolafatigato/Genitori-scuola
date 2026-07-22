@@ -206,9 +206,20 @@ onSnapshot(famRef, (snap) => {
   function elaboraOrganizzazione(risultati, giorni){
     return risultati.map((snap) => {
       if(!snap.exists()) return { presente: false };
-      const dati = snap.data().righe || [];
-      const tot = dati.length;
-      const fatti = dati.filter(r => r.fatto).length;
+      const d = snap.data();
+      // Dal collegamento con l'orario settimanale, i giorni più recenti hanno
+      // anche un riepilogo che include i compiti automatici, oltre a quelli
+      // aggiunti a mano. I giorni salvati prima di questa modifica hanno solo
+      // "righe": restano leggibili comunque.
+      let tot, fatti;
+      if(typeof d.riepilogo_totale === "number"){
+        tot = d.riepilogo_totale;
+        fatti = d.riepilogo_fatti || 0;
+      } else {
+        const dati = d.righe || [];
+        tot = dati.length;
+        fatti = dati.filter(r => r.fatto).length;
+      }
       if(!fatti) return { presente: false };
       const perc = tot ? Math.round((fatti / tot) * 100) : 0;
       return { presente: true, percentuale: perc, testo: `${fatti}/${tot} completati` };

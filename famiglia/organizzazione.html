@@ -24,7 +24,12 @@
     </header>
 
     <main class="page">
-      <div class="subject-tab subject-tab--organizzazione"><span class="emoji">📋</span> Organizzazione</div>
+      <div class="subject-tab subject-tab--organizzazione subject-tab--with-actions">
+        <span><span class="emoji">📋</span> Organizzazione</span>
+        <span class="tab-azioni">
+          <button type="button" id="btn-apri-impostazioni-org" title="Cose da fare ogni giorno">⚙️</button>
+        </span>
+      </div>
 
       <div class="notebook-card">
         <p class="helper-text">Il termometro si riempie da solo man mano che spuntate i compiti fatti. Va benissimo anche non finire tutto ogni giorno.</p>
@@ -32,13 +37,23 @@
           <div class="thermo-fill" id="thermo-fill" style="width:0%"></div>
         </div>
         <p class="thermo-label" id="thermo-label">Aggiungi il primo compito per iniziare</p>
+      </div>
 
-        <hr class="divider">
-
-        <div class="section-title" style="margin:0 0 10px;">
-          <h3 style="margin:0;">Scheda di oggi</h3>
-          <button class="btn btn-sm btn-accent" id="btn-aggiungi">+ Aggiungi</button>
+      <div class="section-title"><h2>📚 Compiti per domani — <span id="etichetta-domani-org"></span></h2></div>
+      <div class="card-plain">
+        <p class="helper-text">Le materie di domani, impostate nello 🎒 Zaino, diventano automaticamente compiti da fare. Puoi spuntarli quando sono fatti, oppure toglierli con ✕ se oggi non servono.</p>
+        <div id="lista-compiti-auto"></div>
+        <div class="empty-state" id="empty-compiti-auto" style="display:none;">
+          <span class="emoji">📚</span>
+          Nessun compito automatico per ora. Imposta l'orario nello <a href="zaino.html">Zaino</a> per vederlo comparire qui, oppure aggiungi una voce fissa dalle ⚙️ impostazioni qui sopra.
         </div>
+      </div>
+
+      <div class="section-title" style="margin:28px 0 10px;">
+        <h2>✏️ Altri compiti di oggi</h2>
+        <button class="btn btn-sm btn-accent" id="btn-aggiungi">+ Aggiungi</button>
+      </div>
+      <div class="notebook-card">
         <div class="col3-head">
           <span>Fatto</span>
           <span>Cosa devo fare</span>
@@ -53,47 +68,202 @@
         </div>
       </div>
 
-
     </main>
+  </div>
+
+  <!-- Modale: cose da fare ogni giorno -->
+  <div class="modal-overlay" id="modal-impostazioni-org">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>⚙️ Cose da fare ogni giorno</h2>
+        <button class="modal-close" data-chiudi-modal="modal-impostazioni-org">✕</button>
+      </div>
+      <p class="helper-text">Queste voci compaiono ogni giorno nella lista "Compiti per domani", insieme a quelle generate dalle materie. Anche queste si possono spuntare o togliere per un singolo giorno.</p>
+      <ul class="history-list" id="lista-generali-org" style="margin-bottom:12px;"></ul>
+      <div class="form-riga"><input type="text" id="generale-org-testo" placeholder="Es. Leggere 10 minuti"></div>
+      <button class="btn btn-sm btn-primary" id="btn-aggiungi-generale-org">Aggiungi</button>
+    </div>
   </div>
 </div>
 
 <script type="module">
 import { proteggiPagina, esci } from "../js/auth.js";
-import { db, doc, getDoc, setDoc, deleteDoc } from "../js/firebase-init.js";
-import { todayId, formatDateBreve, ultimiNGiorni, showToast, renderNavFamiglia } from "../js/utils.js";
+import { db, doc, getDoc, setDoc, updateDoc, onSnapshot } from "../js/firebase-init.js";
+import { todayId, formatDateBreve, showToast, renderNavFamiglia } from "../js/utils.js";
 
 document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "../index.html"));
 
-let righe = []; // { id, compito, materiale, orario, fatto }
-let oggiRef = null; // impostato dentro proteggiPagina, appena conosciamo l'utente
+// ---------- Apertura/chiusura modale (indipendente dai dati utente) ----------
+function apriModal(id){
+  document.getElementById(id).classList.add("aperto");
+  document.body.style.overflow = "hidden";
+}
+function chiudiModal(id){
+  document.getElementById(id).classList.remove("aperto");
+  document.body.style.overflow = "";
+}
+document.querySelectorAll("[data-chiudi-modal]").forEach(b => b.addEventListener("click", () => chiudiModal(b.dataset.chiudiModal)));
+document.querySelectorAll(".modal-overlay").forEach(overlay => {
+  overlay.addEventListener("click", (e) => { if(e.target === overlay) chiudiModal(overlay.id); });
+});
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape") document.querySelectorAll(".modal-overlay.aperto").forEach(o => chiudiModal(o.id));
+});
+document.getElementById("btn-apri-impostazioni-org").addEventListener("click", () => apriModal("modal-impostazioni-org"));
+
+const GIORNI_LABEL = { lunedi:"Lunedì", martedi:"Martedì", mercoledi:"Mercoledì", giovedi:"Giovedì", venerdi:"Venerdì", sabato:"Sabato", domenica:"Domenica" };
+const COLORE_DEFAULT = "#d9dadc";
+
+function chiaveGiornoDaData(d){
+  const mappa = ["domenica","lunedi","martedi","mercoledi","giovedi","venerdi","sabato"];
+  return mappa[d.getDay()];
+}
+const domaniDate = new Date();
+domaniDate.setDate(domaniDate.getDate() + 1);
+const domaniChiave = chiaveGiornoDaData(domaniDate);
+const domaniId = todayId(1);
+document.getElementById("etichetta-domani-org").textContent = `${GIORNI_LABEL[domaniChiave]} ${formatDateBreve(domaniId)}`;
+
+function idSicuro(testo){ return encodeURIComponent(testo); }
+
+let righe = []; // { id, compito, materiale, orario, fatto } — voci aggiunte a mano
+let compitiStato = {};   // { [testo]: true|false } — compiti automatici spuntati oggi
+let compitiRimossi = []; // [testo, ...] — compiti automatici tolti solo per oggi
+let famData = null;      // famiglie/{uid}: orario_giorni, materie, checklist_organizzazione_generale
+let famRef = null;
+let oggiRef = null;
+let oggiCaricato = false;
 let salvaTimeout = null;
 
 const listaEl = document.getElementById("righe-lista");
 const emptyEl = document.getElementById("empty-state");
 const fillEl = document.getElementById("thermo-fill");
 const labelEl = document.getElementById("thermo-label");
+const listaAutoEl = document.getElementById("lista-compiti-auto");
+const emptyAutoEl = document.getElementById("empty-compiti-auto");
 
-// Nota: uso getDoc + salvataggio manuale (non onSnapshot come in emozioni/sonno)
-// perché la scheda ha campi di testo modificati a ogni tasto: un onSnapshot che
-// si ri-attiva anche sui nostri stessi salvataggi ridisegnerebbe gli <input>
-// mentre si sta scrivendo, facendo perdere il focus e la posizione del cursore.
-function salva(){
+// ---------- Compiti automatici, generati dall'orario settimanale (Zaino) ----------
+function calcolaElencoAuto(){
+  const generali = (famData?.checklist_organizzazione_generale || []).map(t => ({ testo: t, materia: null }));
+  const giornoObj = famData?.orario_giorni?.[domaniChiave];
+  const perMateria = [];
+  if(giornoObj){
+    const materieDomani = [...new Set((giornoObj.materie || []).filter(Boolean))];
+    materieDomani.forEach(nome => perMateria.push({ testo: `Compiti ${nome}`, materia: nome }));
+  }
+  return [...generali, ...perMateria];
+}
+
+function calcolaTotali(){
+  const elencoAuto = calcolaElencoAuto().filter(it => !compitiRimossi.includes(it.testo));
+  const fattiAuto = elencoAuto.filter(it => compitiStato[it.testo]).length;
+  const totale = elencoAuto.length + righe.length;
+  const fatti = fattiAuto + righe.filter(r => r.fatto).length;
+  return { totale, fatti };
+}
+
+async function persistiOra(){
   if(!oggiRef) return;
+  const { totale, fatti } = calcolaTotali();
+  try{
+    await setDoc(oggiRef, {
+      righe, compiti_stato: compitiStato, compiti_rimossi: compitiRimossi,
+      riepilogo_totale: totale, riepilogo_fatti: fatti,
+      aggiornato_il: new Date().toISOString()
+    }, { merge: true });
+  }catch(err){
+    console.error(err);
+    showToast("Salvataggio non riuscito. Riprova.");
+  }
+}
+
+function renderCompitiAuto(){
+  if(!famData || !oggiCaricato) return;
+
+  const elenco = calcolaElencoAuto().filter(it => !compitiRimossi.includes(it.testo));
+  if(!elenco.length){
+    listaAutoEl.innerHTML = "";
+    emptyAutoEl.style.display = "";
+    aggiornaTermometro();
+    return;
+  }
+  emptyAutoEl.style.display = "none";
+  const colori = famData.materie || {};
+
+  listaAutoEl.innerHTML = elenco.map(it => {
+    const id = idSicuro(it.testo);
+    const pallino = it.materia ? `<span class="materia-dot" style="background:${colori[it.materia]?.colore || COLORE_DEFAULT};"></span>` : "";
+    return `
+      <div class="check-row">
+        <input type="checkbox" id="compito-${id}" ${compitiStato[it.testo] ? "checked" : ""} data-compito="${id}">
+        <label for="compito-${id}">${pallino}${it.testo}</label>
+        <button class="btn btn-sm btn-ghost" data-rimuovi-compito="${id}" title="Non serve oggi">✕</button>
+      </div>`;
+  }).join("");
+
+  listaAutoEl.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const testo = decodeURIComponent(cb.dataset.compito);
+      compitiStato[testo] = cb.checked;
+      persistiOra();
+      aggiornaTermometro();
+    });
+  });
+  listaAutoEl.querySelectorAll("[data-rimuovi-compito]").forEach(b => {
+    b.addEventListener("click", () => {
+      const testo = decodeURIComponent(b.dataset.rimuoviCompito);
+      if(!compitiRimossi.includes(testo)) compitiRimossi.push(testo);
+      delete compitiStato[testo];
+      persistiOra();
+      renderCompitiAuto();
+    });
+  });
+
+  aggiornaTermometro();
+}
+
+// ---------- Voci fisse di ogni giorno (dentro la modale impostazioni) ----------
+function renderGeneraliOrg(){
+  const generali = famData?.checklist_organizzazione_generale || [];
+  const cont = document.getElementById("lista-generali-org");
+  cont.innerHTML = generali.length ? generali.map(t => `
+    <li class="riga-voce-modello">
+      <span>${t}</span>
+      <button class="btn btn-sm btn-ghost" data-rimuovi-generale-org="${idSicuro(t)}">Rimuovi</button>
+    </li>`).join("") : `<div class="empty-state">Nessuna voce fissa ancora.</div>`;
+
+  cont.querySelectorAll("[data-rimuovi-generale-org]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const testo = decodeURIComponent(b.dataset.rimuoviGeneraleOrg);
+      const nuovi = (famData.checklist_organizzazione_generale || []).filter(t => t !== testo);
+      await updateDoc(famRef, { checklist_organizzazione_generale: nuovi });
+    });
+  });
+}
+
+document.getElementById("btn-aggiungi-generale-org").addEventListener("click", async () => {
+  const input = document.getElementById("generale-org-testo");
+  const testo = input.value.trim();
+  if(!testo) return;
+  const attuali = famData?.checklist_organizzazione_generale || [];
+  if(attuali.includes(testo)){ showToast("C'è già."); return; }
+  await updateDoc(famRef, { checklist_organizzazione_generale: [...attuali, testo] });
+  input.value = "";
+  showToast("Aggiunto ✅");
+});
+
+// ---------- Compiti aggiunti a mano (tabella "Altri compiti di oggi") ----------
+// Nota: uso getDoc + salvataggio manuale (non onSnapshot) perché la scheda ha
+// campi di testo modificati a ogni tasto: un onSnapshot che si ri-attiva anche
+// sui nostri stessi salvataggi ridisegnerebbe gli <input> mentre si sta
+// scrivendo, facendo perdere il focus e la posizione del cursore.
+function salva(){
   clearTimeout(salvaTimeout);
-  salvaTimeout = setTimeout(async () => {
-    try{
-      await setDoc(oggiRef, { righe, aggiornato_il: new Date().toISOString() }, { merge: true });
-    }catch(err){
-      console.error(err);
-      showToast("Salvataggio non riuscito. Riprova.");
-    }
-  }, 600);
+  salvaTimeout = setTimeout(persistiOra, 600);
 }
 
 function aggiornaTermometro(){
-  const totale = righe.length;
-  const fatti = righe.filter(r => r.fatto).length;
+  const { totale, fatti } = calcolaTotali();
   const perc = totale ? Math.round((fatti / totale) * 100) : 0;
   fillEl.style.width = perc + "%";
   labelEl.textContent = totale
@@ -155,19 +325,28 @@ document.getElementById("btn-aggiungi").addEventListener("click", () => {
 });
 
 proteggiPagina("famiglia", (user) => {
-  getDoc(doc(db, "famiglie", user.uid)).then(snap => {
-    renderNavFamiglia(document.getElementById("bottom-nav"), "organizzazione.html", snap.data()?.strumenti_attivi);
-  });
+  famRef = doc(db, "famiglie", user.uid);
 
   const oggi = todayId();
-  const datiPerGiorno = {}; // g -> array di righe di quel giorno (per "riusa")
+  oggiRef = doc(db, "famiglie", user.uid, "voci_organizzazione", oggi);
+
+  onSnapshot(famRef, (snap) => {
+    famData = snap.data() || {};
+    renderNavFamiglia(document.getElementById("bottom-nav"), "organizzazione.html", famData.strumenti_attivi);
+    renderGeneraliOrg();
+    renderCompitiAuto();
+  });
 
   (async () => {
     const snap = await getDoc(oggiRef);
-    righe = snap.exists() ? (snap.data().righe || []) : [];
+    const dati = snap.exists() ? snap.data() : {};
+    righe = dati.righe || [];
+    compitiStato = dati.compiti_stato || {};
+    compitiRimossi = dati.compiti_rimossi || [];
+    oggiCaricato = true;
     renderTutto();
+    renderCompitiAuto();
   })();
-
 
 });
 </script>
