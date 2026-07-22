@@ -19,7 +19,7 @@
 
   <div style="flex:1; display:flex; flex-direction:column;">
     <header class="topbar">
-      <a href="/famiglia/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <a href="dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
       <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
     </header>
 
@@ -247,7 +247,7 @@ obiettivoInput.addEventListener("input", (e) => { obiettivo = e.target.value; sa
 // --- Avvio pagina ------------------------------------------------------------
 proteggiPagina("famiglia", (user) => {
   getDoc(doc(db, "famiglie", user.uid)).then(snap => {
-    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/autostima.html", snap.data()?.strumenti_attivi);
+    renderNavFamiglia(document.getElementById("bottom-nav"), "autostima.html", snap.data()?.strumenti_attivi);
   });
 
   tentativiRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "tentativi");  obiettivoRef = doc(db, "famiglie", user.uid, "strumenti_autostima", "obiettivo");

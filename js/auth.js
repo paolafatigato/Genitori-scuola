@@ -64,17 +64,17 @@ export async function creaProfilo(user, ruolo){
 export function proteggiPagina(ruoloRichiesto, onReady){
   onAuthStateChanged(auth, async (user) => {
     if(!user){
-      window.location.href = "/index.html";
+      window.location.href = "../index.html";
       return;
     }
     const utente = await leggiUtente(user.uid);
     if(!utente){
       // Ha fatto login ma non ha ancora scelto un ruolo.
-      window.location.href = "/index.html";
+      window.location.href = "../index.html";
       return;
     }
     if(ruoloRichiesto && utente.ruolo !== ruoloRichiesto){
-      window.location.href = utente.ruolo === "famiglia" ? "/famiglia/dashboard.html" : "/docente/dashboard.html";
+      window.location.href = utente.ruolo === "famiglia" ? "../famiglia/dashboard.html" : "../docente/dashboard.html";
       return;
     }
     onReady(user, utente);

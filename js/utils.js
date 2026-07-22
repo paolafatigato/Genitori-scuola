@@ -67,13 +67,13 @@ export function escapeHtml(str){
 // far comparire un nuovo strumento tra quelli attivabili dalle impostazioni.
 // DOPO
 export const STRUMENTI_DISPONIBILI = [
-  { chiave: "zaino", nome: "Zaino", emoji: "🎒", href: "/famiglia/zaino.html" },
-  { chiave: "attenzione", nome: "Attenzione", emoji: "🎯", href: "/famiglia/attenzione.html" },
-  { chiave: "organizzazione", nome: "Organizzazione", emoji: "📋", href: "/famiglia/organizzazione.html" },
-  // { chiave: "emozioni", nome: "Emozioni", emoji: "🌡️", href: "/famiglia/emozioni.html" },
-  { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "/famiglia/sonno.html" },
-  { chiave: "autostima", nome: "Autostima", emoji: "🌱", href: "/famiglia/autostima.html" },
-  { chiave: "ansia", nome: "Ansia scolastica", emoji: "🌤️", href: "/famiglia/ansia.html" }
+  { chiave: "zaino", nome: "Zaino", emoji: "🎒", href: "zaino.html" },
+  { chiave: "attenzione", nome: "Attenzione", emoji: "🎯", href: "attenzione.html" },
+  { chiave: "organizzazione", nome: "Organizzazione", emoji: "📋", href: "organizzazione.html" },
+  // { chiave: "emozioni", nome: "Emozioni", emoji: "🌡️", href: "emozioni.html" },
+  { chiave: "sonno", nome: "Sonno", emoji: "🌙", href: "sonno.html" },
+  { chiave: "autostima", nome: "Autostima", emoji: "🌱", href: "autostima.html" },
+  { chiave: "ansia", nome: "Ansia scolastica", emoji: "🌤️", href: "ansia.html" }
 ];
 
 // Accetta sia il vecchio formato {zaino:true,...} sia il nuovo array ordinato
@@ -108,10 +108,10 @@ export function renderNavFamiglia(navEl, hrefAttiva, strumentiAttiviRaw){
     .map(s => ({ ...s, nonAttivo: true }));
 
   const voci = [
-    { nome: "Oggi", emoji: "🏠", href: "/famiglia/dashboard.html" },
+    { nome: "Oggi", emoji: "🏠", href: "dashboard.html" },
     ...vociAttive,
     ...vociInattive,
-    { nome: "Impostazioni", emoji: "⚙️", href: "/famiglia/impostazioni.html" }
+    { nome: "Impostazioni", emoji: "⚙️", href: "impostazioni.html" }
   ];
 
   navEl.innerHTML = voci.map(v => {
