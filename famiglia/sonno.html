@@ -169,48 +169,7 @@ onSnapshot(famRef, (snap) => {
     showToast("Salvato ✅");
   });
 
-  caricaStorico();
 
-  async function caricaStorico(){
-    const giorni = ultimiNGiorni(14);
-    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_sonno", g))));
-
-    let giorniRispettati = 0;
-    let giorniCompilati = 0;
-
-    const righe = risultati.map((snap, idx) => {
-      const g = giorni[idx];
-      if(!snap.exists()) return { g, ore: null, umore: null, rispettata: null };
-      const d = snap.data();
-      giorniCompilati++;
-      if(d.rispettata === true) giorniRispettati++;
-      return {
-        g,
-        ore: oreSonno(d.ora_spegnimento_luci, d.ora_risveglio),
-        umore: d.umore_risveglio,
-        rispettata: d.rispettata
-      };
-    });
-
-    document.getElementById("riepilogo-routine").textContent = giorniCompilati
-      ? `Routine rispettata ${giorniRispettati} giorni su ${giorniCompilati} compilati (ultimi 14 giorni).`
-      : `Ancora nessuna giornata registrata.`;
-
-    document.getElementById("grafico-sonno").innerHTML = righe.map(r => `
-      <div class="bar-col">
-        <div class="bar" style="height:${r.ore ? Math.min(r.ore/12*100,100) : 4}%; background:${r.ore ? "var(--sonno-100)" : "var(--rule-soft)"};"></div>
-        <span class="bar-label">${r.ore ?? "–"}</span>
-      </div>`).join("");
-
-    const conDati = righe.filter(r => r.rispettata !== null).reverse();
-    document.getElementById("lista-storico-sonno").innerHTML = conDati.length
-      ? conDati.map(r => `
-        <li class="history-item">
-          <span class="data">${formatDateBreve(r.g)}</span>
-          <span class="valore">${r.rispettata ? "✅" : "✏️"} ${r.ore !== null ? r.ore + " h" : "–"} ${r.umore ? EMOJI[r.umore-1] : ""}</span>
-        </li>`).join("")
-      : `<div class="empty-state"><span class="emoji">🌙</span>Ancora nessuna compilazione.</div>`;
-  }
 });
 </script>
 </body>

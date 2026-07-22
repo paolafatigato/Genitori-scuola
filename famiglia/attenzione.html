@@ -396,43 +396,7 @@ proteggiPagina("famiglia", (user) => {
     renderChecklist();
   })();
 
-  caricaStorico();
 
-  async function caricaStorico(){
-    const giorni = ultimiNGiorni(30);
-    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_attenzione", g))));
-
-    let giorniConAlmenoUno = 0;
-    let maxBlocchi = 1;
-    const barre = [];
-    const righeStorico = [];
-
-    risultati.forEach((snap, idx) => {
-      const g = giorni[idx];
-      const n = snap.exists() ? (snap.data().blocchi_completati || 0) : 0;
-      if(n > 0) giorniConAlmenoUno++;
-      if(n > maxBlocchi) maxBlocchi = n;
-      barre.push({ g, n });
-      if(n > 0) righeStorico.push({ g, n });
-    });
-
-    document.getElementById("riepilogo-storico").textContent =
-      `Almeno un blocco in ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
-
-    document.getElementById("grafico-attenzione").innerHTML = barre.slice(-14).map(b => `
-      <div class="bar-col">
-        <div class="bar" style="height:${b.n ? Math.max(Math.round((b.n / maxBlocchi) * 100), 4) : 2}%; background:var(--attenzione-100);"></div>
-        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
-      </div>`).join("");
-
-    document.getElementById("lista-storico").innerHTML = righeStorico.length
-      ? righeStorico.slice().reverse().map(r => `
-        <li class="history-item">
-          <span class="data">${formatDateBreve(r.g)}</span>
-          <span class="valore">${r.n} blocc${r.n === 1 ? "o" : "hi"} completat${r.n === 1 ? "o" : "i"}</span>
-        </li>`).join("")
-      : `<div class="empty-state"><span class="emoji">🎯</span>Ancora nessun blocco completato.</div>`;
-  }
 });
 </script>
 </body>
