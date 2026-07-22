@@ -14,6 +14,10 @@ famiglia/dashboard.html     "Oggi": riepilogo strumenti, codice, richieste
 famiglia/zaino.html         Checklist zaino, oggi + storico 30 giorni
 famiglia/emozioni.html      Termometro emozioni, oggi + storico
 famiglia/sonno.html         Diario del sonno, oggi + storico
+famiglia/organizzazione.html Organizzazione e gestione del tempo
+famiglia/ansia.html         Tracciamento ansia scolastica
+famiglia/attenzione.html    Monitoraggio concentrazione e attenzione
+famiglia/autostima.html     Valutazione autostima del bambino
 famiglia/impostazioni.html  Nome alunno/a, personalizzazione checklist
 docente/dashboard.html      Inserimento codice, elenco famiglie collegate
 docente/famiglia.html       Vista sola lettura di una famiglia + commenti
