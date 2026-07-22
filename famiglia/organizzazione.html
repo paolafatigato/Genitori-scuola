@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="../logo.png">
-<link rel="manifest" href="../manifest.json">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="manifest" href="/manifest.json">
 <title>Organizzazione — Il Diario Insieme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../css/style.css?v=1">
+<link rel="stylesheet" href="/css/style.css?v=1">
 </head>
 <body class="ruled-bg tema-organizzazione">
 <div class="app-shell">
@@ -53,23 +53,16 @@
         </div>
       </div>
 
-      <div class="section-title"><h2>📖 Storico (ultimi 30 giorni)</h2></div>
-      <div class="card-plain">
-        <p class="streak-note" id="riepilogo-storico"></p>
-        <div class="bar-chart" id="grafico-organizzazione"></div>
-        <hr class="divider">
-        <ul class="history-list" id="lista-storico"></ul>
-      </div>
     </main>
   </div>
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "../js/auth.js";
-import { db, doc, getDoc, setDoc, deleteDoc } from "../js/firebase-init.js";
-import { todayId, formatDateBreve, ultimiNGiorni, showToast, renderNavFamiglia } from "../js/utils.js";
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
+import { todayId, showToast, renderNavFamiglia } from "/js/utils.js";
 
-document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "../index.html"));
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 
 let righe = []; // { id, compito, materiale, orario, fatto }
 let oggiRef = null; // impostato dentro proteggiPagina, appena conosciamo l'utente
@@ -166,94 +159,13 @@ proteggiPagina("famiglia", (user) => {
   });
 
   const oggi = todayId();
-  const datiPerGiorno = {}; // g -> array di righe di quel giorno (per "riusa")
+  oggiRef = doc(db, "famiglie", user.uid, "voci_organizzazione", oggi);
 
   (async () => {
     const snap = await getDoc(oggiRef);
     righe = snap.exists() ? (snap.data().righe || []) : [];
     renderTutto();
   })();
-
-  caricaStorico();
-
-  async function caricaStorico(){
-    const giorni = ultimiNGiorni(30);
-    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_organizzazione", g))));
-
-    let giorniConAlmenoUno = 0;
-    const righeStorico = [];
-    const barre = [];
-
-    risultati.forEach((snap, idx) => {
-      const g = giorni[idx];
-      if(snap.exists()){
-        const dati = snap.data().righe || [];
-        datiPerGiorno[g] = dati;
-        const tot = dati.length;
-        const fatti = dati.filter(r => r.fatto).length;
-        if(fatti > 0) giorniConAlmenoUno++;
-        const perc = tot ? Math.round((fatti / tot) * 100) : 0;
-        righeStorico.push({ g, testo: `${fatti}/${tot}`, tot });
-        barre.push({ g, perc });
-      } else {
-        barre.push({ g, perc: 0 });
-      }
-    });
-
-    document.getElementById("riepilogo-storico").textContent =
-      `Compilata ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
-
-    document.getElementById("grafico-organizzazione").innerHTML = barre.slice(-14).map(b => `
-      <div class="bar-col">
-        <div class="bar" style="height:${Math.max(b.perc,4)}%; background:var(--org-100);"></div>
-        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
-      </div>`).join("");
-
-    const listaStoricoEl = document.getElementById("lista-storico");
-    listaStoricoEl.innerHTML = righeStorico.length
-      ? righeStorico.slice().reverse().map(r => `
-        <li class="history-item">
-          <span class="data">${formatDateBreve(r.g)}</span>
-          <span class="valore">${r.testo} completati</span>
-          <div class="azioni-storico">
-            <button class="icon-btn" data-riusa-giorno="${r.g}" title="Riusa i compiti di questo giorno" aria-label="Riusa i compiti di questo giorno" ${r.tot ? "" : "disabled"}>↻</button>
-            <button class="icon-btn icon-btn--danger" data-elimina-giorno="${r.g}" title="Elimina definitivamente questo giorno" aria-label="Elimina definitivamente questo giorno">🗑</button>
-          </div>
-        </li>`).join("")
-      : `<div class="empty-state"><span class="emoji">📋</span>Ancora nessuna compilazione.</div>`;
-
-    listaStoricoEl.querySelectorAll("[data-riusa-giorno]").forEach(b => b.addEventListener("click", () => riusaGiorno(b.dataset.riusaGiorno)));
-    listaStoricoEl.querySelectorAll("[data-elimina-giorno]").forEach(b => b.addEventListener("click", () => eliminaGiorno(b.dataset.eliminaGiorno)));
-  }
-
-  function riusaGiorno(g){
-    const daRiusare = datiPerGiorno[g] || [];
-    if(!daRiusare.length){ showToast("Nessun compito da riusare per questo giorno."); return; }
-    daRiusare.forEach(r => {
-      const nuova = { id: crypto.randomUUID(), compito: r.compito || "", materiale: r.materiale || "", orario: r.orario || "", fatto: false };
-      righe.push(nuova);
-      listaEl.appendChild(creaRigaEl(nuova));
-    });
-    aggiornaEmptyState();
-    aggiornaTermometro();
-    salva();
-    showToast(`${daRiusare.length} compit${daRiusare.length === 1 ? "o aggiunto" : "i aggiunti"} a oggi ✅`);
-  }
-
-  async function eliminaGiorno(g){
-    const confermato = window.confirm(`Eliminare definitivamente la scheda del ${formatDateBreve(g)}? Non si può annullare.`);
-    if(!confermato) return;
-    try{
-      await deleteDoc(doc(db, "famiglie", user.uid, "voci_organizzazione", g));
-      delete datiPerGiorno[g];
-      if(g === oggi){ righe = []; renderTutto(); }
-      showToast("Eliminato definitivamente.");
-      caricaStorico();
-    }catch(err){
-      console.error(err);
-      showToast("Eliminazione non riuscita. Riprova.");
-    }
-  }
 });
 </script>
 </body>

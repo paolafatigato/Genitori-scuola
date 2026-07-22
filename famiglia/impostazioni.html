@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="../logo.png">
-<link rel="manifest" href="../manifest.json">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="manifest" href="/manifest.json">
 <title>Impostazioni — Il Diario Insieme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../css/style.css?v=6">
+<link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body class="ruled-bg">
 <div class="app-shell">
@@ -37,6 +37,50 @@
         <div id="lista-strumenti"><div class="spinner-wrap">Un attimo…</div></div>
       </div>
 
+      <div class="section-title"><h2>📖 Storico</h2></div>
+      <div class="card-plain">
+        <p class="helper-text">Le compilazioni completate nei vari strumenti, giorno per giorno. Tocca uno strumento per aprirlo.</p>
+
+        <details class="editor-modello">
+          <summary>📋 Organizzazione</summary>
+          <p class="streak-note" id="riepilogo-organizzazione"></p>
+          <div class="bar-chart" id="grafico-organizzazione"></div>
+          <hr class="divider">
+          <ul class="history-list" id="lista-organizzazione"></ul>
+        </details>
+
+        <details class="editor-modello">
+          <summary>🎒 Zaino</summary>
+          <p class="streak-note" id="riepilogo-zaino"></p>
+          <div class="bar-chart" id="grafico-zaino"></div>
+          <hr class="divider">
+          <ul class="history-list" id="lista-zaino"></ul>
+        </details>
+
+        <details class="editor-modello">
+          <summary>🎯 Attenzione</summary>
+          <p class="streak-note" id="riepilogo-attenzione"></p>
+          <div class="bar-chart" id="grafico-attenzione"></div>
+          <hr class="divider">
+          <ul class="history-list" id="lista-attenzione"></ul>
+        </details>
+
+        <details class="editor-modello">
+          <summary>🌙 Sonno</summary>
+          <p class="streak-note" id="riepilogo-sonno"></p>
+          <div class="bar-chart" id="grafico-sonno"></div>
+          <hr class="divider">
+          <ul class="history-list" id="lista-sonno"></ul>
+        </details>
+
+        <details class="editor-modello">
+          <summary>🌡️ Emozioni</summary>
+          <div class="bar-chart" id="grafico-emozioni"></div>
+          <hr class="divider">
+          <ul class="history-list" id="lista-emozioni"></ul>
+        </details>
+      </div>
+
       <div class="section-title"><h2>👤 Account</h2></div>
       <div class="card-plain">
         <p class="helper-text" id="email-account"></p>
@@ -47,17 +91,31 @@
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "../js/auth.js";
-import { db, doc, updateDoc, onSnapshot } from "../js/firebase-init.js";
-import { showToast, STRUMENTI_DISPONIBILI, normalizzaStrumentiAttivi, renderNavFamiglia } from "../js/utils.js";
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, updateDoc, deleteDoc, onSnapshot } from "/js/firebase-init.js";
+import { showToast, STRUMENTI_DISPONIBILI, normalizzaStrumentiAttivi, renderNavFamiglia, ultimiNGiorni, formatDateBreve } from "/js/utils.js";
 
-function vaiAlLogin(){ esci().then(() => window.location.href = "../index.html"); }
+const EMOJI_UMORE = ["😞","🙁","😐","🙂","😄"];
+
+function normalizzaVoce(v){ return (typeof v === "string") ? { testo: v, materia: null } : v; }
+function normalizzaLista(arr){ return (arr || []).map(normalizzaVoce); }
+
+function oreSonno(luci, sveglia){
+  if(!luci || !sveglia) return null;
+  const [lh, lm] = luci.split(":").map(Number);
+  const [sh, sm] = sveglia.split(":").map(Number);
+  let diff = (sh*60+sm) - (lh*60+lm);
+  if(diff <= 0) diff += 24*60; // passa la mezzanotte
+  return Math.round((diff/60)*10)/10;
+}
+
+function vaiAlLogin(){ esci().then(() => window.location.href = "/index.html"); }
 document.getElementById("btn-esci").addEventListener("click", vaiAlLogin);
 document.getElementById("btn-esci-2").addEventListener("click", vaiAlLogin);
 
 proteggiPagina("famiglia", (user, utente) => {
   getDoc(doc(db, "famiglie", user.uid)).then(snap => {
-    renderNavFamiglia(document.getElementById("bottom-nav"), "./impostazioni.html", snap.data()?.strumenti_attivi);
+    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/impostazioni.html", snap.data()?.strumenti_attivi);
   });
 
   document.getElementById("email-account").textContent = `Accesso eseguito come ${utente.email || user.email}`;
@@ -69,7 +127,7 @@ onSnapshot(famRef, (snap) => {
   famData = snap.data();
   if(!famData) return;
   document.getElementById("nome-alunno").value = famData.nome_alunno || "";
-    renderNavFamiglia(document.getElementById("bottom-nav"), "./impostazioni.html", famData.strumenti_attivi);
+  renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/impostazioni.html", famData.strumenti_attivi);
   renderStrumenti();
 });
 
@@ -131,6 +189,200 @@ onSnapshot(famRef, (snap) => {
     await updateDoc(famRef, { nome_alunno: document.getElementById("nome-alunno").value.trim() });
     showToast("Salvato ✅");
   });
+
+  // ---------- Storico consolidato ----------
+  function renderStoricoLista(elId, righe, collezione, emojiVuoto, ricaricaFn){
+    const el = document.getElementById(elId);
+    el.innerHTML = righe.length
+      ? righe.map(r => `
+        <li class="history-item">
+          <span class="data">${formatDateBreve(r.g)}</span>
+          <span class="valore">${r.testo}</span>
+          <div class="azioni-storico">
+            <button class="icon-btn icon-btn--danger" data-elimina="${collezione}::${r.g}" title="Elimina definitivamente questo giorno" aria-label="Elimina definitivamente questo giorno">🗑</button>
+          </div>
+        </li>`).join("")
+      : `<div class="empty-state"><span class="emoji">${emojiVuoto}</span>Ancora nessuna compilazione.</div>`;
+
+    el.querySelectorAll("[data-elimina]").forEach(b => {
+      b.addEventListener("click", async () => {
+        const [coll, g] = b.dataset.elimina.split("::");
+        const confermato = window.confirm(`Eliminare definitivamente la scheda del ${formatDateBreve(g)}? Non si può annullare.`);
+        if(!confermato) return;
+        try{
+          await deleteDoc(doc(db, "famiglie", user.uid, coll, g));
+          showToast("Eliminato definitivamente.");
+          ricaricaFn();
+        }catch(err){
+          console.error(err);
+          showToast("Eliminazione non riuscita. Riprova.");
+        }
+      });
+    });
+  }
+
+  async function caricaStoricoOrganizzazione(){
+    const giorni = ultimiNGiorni(30);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_organizzazione", g))));
+
+    let giorniConAlmenoUno = 0;
+    const righeStorico = [];
+    const barre = [];
+
+    risultati.forEach((snap, idx) => {
+      const g = giorni[idx];
+      if(snap.exists()){
+        const dati = snap.data().righe || [];
+        const tot = dati.length;
+        const fatti = dati.filter(r => r.fatto).length;
+        if(fatti > 0) giorniConAlmenoUno++;
+        const perc = tot ? Math.round((fatti / tot) * 100) : 0;
+        righeStorico.push({ g, testo: `${fatti}/${tot} completati` });
+        barre.push({ g, perc });
+      } else {
+        barre.push({ g, perc: 0 });
+      }
+    });
+
+    document.getElementById("riepilogo-organizzazione").textContent =
+      `Compilata ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
+
+    document.getElementById("grafico-organizzazione").innerHTML = barre.slice(-14).map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${Math.max(b.perc,4)}%; background:var(--org-100);"></div>
+        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
+      </div>`).join("");
+
+    renderStoricoLista("lista-organizzazione", righeStorico.slice().reverse(), "voci_organizzazione", "📋", caricaStoricoOrganizzazione);
+  }
+
+  async function caricaStoricoZaino(){
+    const giorni = ultimiNGiorni(30);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_zaino", g))));
+
+    let giorniConAlmenoUno = 0;
+    const righe = [];
+    const barre = [];
+
+    risultati.forEach((snap, idx) => {
+      const g = giorni[idx];
+      if(snap.exists()){
+        const d = snap.data();
+        const elencoBase = (d.elenco_del_giorno && d.elenco_del_giorno.length) ? d.elenco_del_giorno : Object.keys(d.voci || {});
+        const elenco = normalizzaLista(elencoBase);
+        const fatti = elenco.filter(v => d.voci && d.voci[v.testo]).length;
+        const totale = elenco.length;
+        if(fatti > 0) giorniConAlmenoUno++;
+        const perc = totale ? Math.round((fatti/totale)*100) : 0;
+        righe.push({ g, testo: `${fatti}/${totale} pronti` });
+        barre.push({ g, perc });
+      } else {
+        barre.push({ g, perc: 0 });
+      }
+    });
+
+    document.getElementById("riepilogo-zaino").textContent =
+      `Compilata ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
+
+    document.getElementById("grafico-zaino").innerHTML = barre.slice(-14).map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${Math.max(b.perc,4)}%; background:var(--zaino-100);"></div>
+        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
+      </div>`).join("");
+
+    renderStoricoLista("lista-zaino", righe.slice().reverse(), "voci_zaino", "🎒", caricaStoricoZaino);
+  }
+
+  async function caricaStoricoAttenzione(){
+    const giorni = ultimiNGiorni(30);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_attenzione", g))));
+
+    let giorniConAlmenoUno = 0;
+    let maxBlocchi = 1;
+    const barre = [];
+    const righeStorico = [];
+
+    risultati.forEach((snap, idx) => {
+      const g = giorni[idx];
+      const n = snap.exists() ? (snap.data().blocchi_completati || 0) : 0;
+      if(n > 0) giorniConAlmenoUno++;
+      if(n > maxBlocchi) maxBlocchi = n;
+      barre.push({ g, n });
+      if(n > 0) righeStorico.push({ g, testo: `${n} blocc${n === 1 ? "o" : "hi"} completat${n === 1 ? "o" : "i"}` });
+    });
+
+    document.getElementById("riepilogo-attenzione").textContent =
+      `Almeno un blocco in ${giorniConAlmenoUno} giorni su ${giorni.length} negli ultimi 30 giorni.`;
+
+    document.getElementById("grafico-attenzione").innerHTML = barre.slice(-14).map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${b.n ? Math.max(Math.round((b.n / maxBlocchi) * 100), 4) : 2}%; background:var(--attenzione-100);"></div>
+        <span class="bar-label">${formatDateBreve(b.g).split(" ")[0]}</span>
+      </div>`).join("");
+
+    renderStoricoLista("lista-attenzione", righeStorico.slice().reverse(), "voci_attenzione", "🎯", caricaStoricoAttenzione);
+  }
+
+  async function caricaStoricoSonno(){
+    const giorni = ultimiNGiorni(14);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_sonno", g))));
+
+    let giorniRispettati = 0;
+    let giorniCompilati = 0;
+
+    const righe = risultati.map((snap, idx) => {
+      const g = giorni[idx];
+      if(!snap.exists()) return { g, ore: null, umore: null, rispettata: null };
+      const d = snap.data();
+      giorniCompilati++;
+      if(d.rispettata === true) giorniRispettati++;
+      return {
+        g,
+        ore: oreSonno(d.ora_spegnimento_luci, d.ora_risveglio),
+        umore: d.umore_risveglio,
+        rispettata: d.rispettata
+      };
+    });
+
+    document.getElementById("riepilogo-sonno").textContent = giorniCompilati
+      ? `Routine rispettata ${giorniRispettati} giorni su ${giorniCompilati} compilati (ultimi 14 giorni).`
+      : `Ancora nessuna giornata registrata.`;
+
+    document.getElementById("grafico-sonno").innerHTML = righe.map(r => `
+      <div class="bar-col">
+        <div class="bar" style="height:${r.ore ? Math.min(r.ore/12*100,100) : 4}%; background:${r.ore ? "var(--sonno-100)" : "var(--rule-soft)"};"></div>
+        <span class="bar-label">${r.ore ?? "–"}</span>
+      </div>`).join("");
+
+    const conDati = righe
+      .filter(r => r.rispettata !== null)
+      .map(r => ({ g: r.g, testo: `${r.rispettata ? "✅" : "✏️"} ${r.ore !== null ? r.ore + " h" : "–"} ${r.umore ? EMOJI_UMORE[r.umore-1] : ""}` }));
+
+    renderStoricoLista("lista-sonno", conDati.slice().reverse(), "voci_sonno", "🌙", caricaStoricoSonno);
+  }
+
+  async function caricaStoricoEmozioni(){
+    const giorni = ultimiNGiorni(14);
+    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_emozioni", g))));
+
+    const barre = risultati.map((snap, idx) => ({ g: giorni[idx], livello: snap.exists() ? snap.data().livello : 0 }));
+
+    document.getElementById("grafico-emozioni").innerHTML = barre.map(b => `
+      <div class="bar-col">
+        <div class="bar" style="height:${b.livello ? b.livello*20 : 4}%; background:${b.livello ? "var(--emozioni-100)" : "var(--rule-soft)"};"></div>
+        <span class="bar-label">${b.livello ? EMOJI_UMORE[b.livello-1] : "–"}</span>
+      </div>`).join("");
+
+    const conVoci = barre.filter(b => b.livello).map(b => ({ g: b.g, testo: EMOJI_UMORE[b.livello-1] }));
+
+    renderStoricoLista("lista-emozioni", conVoci.slice().reverse(), "voci_emozioni", "🌡️", caricaStoricoEmozioni);
+  }
+
+  caricaStoricoOrganizzazione();
+  caricaStoricoZaino();
+  caricaStoricoAttenzione();
+  caricaStoricoSonno();
+  caricaStoricoEmozioni();
 });
 </script>
 </body>

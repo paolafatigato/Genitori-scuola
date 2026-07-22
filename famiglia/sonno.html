@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="../logo.png">
-<link rel="manifest" href="../manifest.json">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="manifest" href="/manifest.json">
 <title>Sonno — Il Diario Insieme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="../css/style.css?v=1">
+<link rel="stylesheet" href="/css/style.css?v=1">
 </head>
 <body class="ruled-bg tema-sonno">
 <div class="app-shell">
@@ -62,25 +62,17 @@
         <button class="btn btn-sm btn-primary" id="btn-salva-routine">Salva routine</button>
       </details>
 
-      <div class="section-title"><h2>📖 Storico</h2></div>
-      <div class="card-plain">
-        <p class="streak-note" id="riepilogo-routine"></p>
-        <div class="bar-chart" id="grafico-sonno"></div>
-        <hr class="divider">
-        <ul class="history-list" id="lista-storico-sonno"></ul>
-      </div>
     </main>
   </div>
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "../js/auth.js";
-import { db, doc, getDoc, setDoc, onSnapshot } from "../js/firebase-init.js";
-import { todayId, formatDateLunga, showToast, normalizzaStrumentiAttivi, renderNavFamiglia } from "../js/utils.js";
+import { proteggiPagina, esci } from "/js/auth.js";
+import { db, doc, getDoc, setDoc, onSnapshot } from "/js/firebase-init.js";
+import { todayId, formatDateLunga, showToast, normalizzaStrumentiAttivi, renderNavFamiglia } from "/js/utils.js";
 
-document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "../index.html"));
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
 
-const EMOJI = ["😞","🙁","😐","🙂","😄"];
 let umoreScelto = null;
 let rispettataScelta = null; // true | false | null (non ancora scelto oggi)
 
@@ -100,15 +92,6 @@ function mostraSceltaRispettata(valore){
 document.getElementById("btn-rispettata-si").addEventListener("click", () => mostraSceltaRispettata(true));
 document.getElementById("btn-rispettata-no").addEventListener("click", () => mostraSceltaRispettata(false));
 
-function oreSonno(luci, sveglia){
-  if(!luci || !sveglia) return null;
-  const [lh, lm] = luci.split(":").map(Number);
-  const [sh, sm] = sveglia.split(":").map(Number);
-  let diff = (sh*60+sm) - (lh*60+lm);
-  if(diff <= 0) diff += 24*60; // passa la mezzanotte
-  return Math.round((diff/60)*10)/10;
-}
-
 proteggiPagina("famiglia", (user) => {
   const oggi = todayId();
   const famRef = doc(db, "famiglie", user.uid);
@@ -118,7 +101,7 @@ proteggiPagina("famiglia", (user) => {
 
 onSnapshot(famRef, (snap) => {
   famData = snap.data() || {};
-  renderNavFamiglia(document.getElementById("bottom-nav"), "./sonno.html", famData.strumenti_attivi);
+  renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/sonno.html", famData.strumenti_attivi);
   const routine = famData.routine_sonno;
     document.getElementById("routine-info").textContent = routine && routine.ora_luci && routine.ora_sveglia
       ? `La vostra routine: luci spente alle ${routine.ora_luci}, sveglia alle ${routine.ora_sveglia}.`
@@ -175,48 +158,6 @@ onSnapshot(famRef, (snap) => {
     showToast("Salvato ✅");
   });
 
-  caricaStorico();
-
-  async function caricaStorico(){
-    const giorni = ultimiNGiorni(14);
-    const risultati = await Promise.all(giorni.map(g => getDoc(doc(db, "famiglie", user.uid, "voci_sonno", g))));
-
-    let giorniRispettati = 0;
-    let giorniCompilati = 0;
-
-    const righe = risultati.map((snap, idx) => {
-      const g = giorni[idx];
-      if(!snap.exists()) return { g, ore: null, umore: null, rispettata: null };
-      const d = snap.data();
-      giorniCompilati++;
-      if(d.rispettata === true) giorniRispettati++;
-      return {
-        g,
-        ore: oreSonno(d.ora_spegnimento_luci, d.ora_risveglio),
-        umore: d.umore_risveglio,
-        rispettata: d.rispettata
-      };
-    });
-
-    document.getElementById("riepilogo-routine").textContent = giorniCompilati
-      ? `Routine rispettata ${giorniRispettati} giorni su ${giorniCompilati} compilati (ultimi 14 giorni).`
-      : `Ancora nessuna giornata registrata.`;
-
-    document.getElementById("grafico-sonno").innerHTML = righe.map(r => `
-      <div class="bar-col">
-        <div class="bar" style="height:${r.ore ? Math.min(r.ore/12*100,100) : 4}%; background:${r.ore ? "var(--sonno-100)" : "var(--rule-soft)"};"></div>
-        <span class="bar-label">${r.ore ?? "–"}</span>
-      </div>`).join("");
-
-    const conDati = righe.filter(r => r.rispettata !== null).reverse();
-    document.getElementById("lista-storico-sonno").innerHTML = conDati.length
-      ? conDati.map(r => `
-        <li class="history-item">
-          <span class="data">${formatDateBreve(r.g)}</span>
-          <span class="valore">${r.rispettata ? "✅" : "✏️"} ${r.ore !== null ? r.ore + " h" : "–"} ${r.umore ? EMOJI[r.umore-1] : ""}</span>
-        </li>`).join("")
-      : `<div class="empty-state"><span class="emoji">🌙</span>Ancora nessuna compilazione.</div>`;
-  }
 });
 </script>
 </body>
