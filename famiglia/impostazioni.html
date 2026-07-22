@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="/logo.png">
-<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="../logo.png">
+<link rel="manifest" href="../manifest.json">
 <title>Impostazioni — Il Diario Insieme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=6">
+<link rel="stylesheet" href="../css/style.css?v=6">
 </head>
 <body class="ruled-bg">
 <div class="app-shell">
@@ -47,17 +47,17 @@
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "/js/auth.js";
-import { db, doc, updateDoc, onSnapshot } from "/js/firebase-init.js";
-import { showToast, STRUMENTI_DISPONIBILI, normalizzaStrumentiAttivi, renderNavFamiglia } from "/js/utils.js";
+import { proteggiPagina, esci } from "../js/auth.js";
+import { db, doc, updateDoc, onSnapshot } from "../js/firebase-init.js";
+import { showToast, STRUMENTI_DISPONIBILI, normalizzaStrumentiAttivi, renderNavFamiglia } from "../js/utils.js";
 
-function vaiAlLogin(){ esci().then(() => window.location.href = "/index.html"); }
+function vaiAlLogin(){ esci().then(() => window.location.href = "../index.html"); }
 document.getElementById("btn-esci").addEventListener("click", vaiAlLogin);
 document.getElementById("btn-esci-2").addEventListener("click", vaiAlLogin);
 
 proteggiPagina("famiglia", (user, utente) => {
   getDoc(doc(db, "famiglie", user.uid)).then(snap => {
-    renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/impostazioni.html", snap.data()?.strumenti_attivi);
+    renderNavFamiglia(document.getElementById("bottom-nav"), "./impostazioni.html", snap.data()?.strumenti_attivi);
   });
 
   document.getElementById("email-account").textContent = `Accesso eseguito come ${utente.email || user.email}`;
@@ -69,7 +69,7 @@ onSnapshot(famRef, (snap) => {
   famData = snap.data();
   if(!famData) return;
   document.getElementById("nome-alunno").value = famData.nome_alunno || "";
-  renderNavFamiglia(document.getElementById("bottom-nav"), "/famiglia/impostazioni.html", famData.strumenti_attivi);
+    renderNavFamiglia(document.getElementById("bottom-nav"), "./impostazioni.html", famData.strumenti_attivi);
   renderStrumenti();
 });
 

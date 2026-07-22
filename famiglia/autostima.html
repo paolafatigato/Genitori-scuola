@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="/logo.png">
-<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="../logo.png">
+<link rel="manifest" href="../manifest.json">
 <title>Autostima — Il Diario Insieme</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=1">
+<link rel="stylesheet" href="../css/style.css?v=1">
 </head>
 <body class="ruled-bg tema-autostima">
 <div class="app-shell">
@@ -66,11 +66,11 @@
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "/js/auth.js";
-import { db, doc, getDoc, setDoc } from "/js/firebase-init.js";
-import { todayId, formatDateBreve, showToast, renderNavFamiglia } from "/js/utils.js";
+import { proteggiPagina, esci } from "../js/auth.js";
+import { db, doc, getDoc, setDoc } from "../js/firebase-init.js";
+import { todayId, formatDateBreve, showToast, renderNavFamiglia } from "../js/utils.js";
 
-document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "../index.html"));
 
 let tentativiRef = null;
 let obiettivoRef = null;

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Le mie famiglie — Il Diario Insieme</title>
 <meta name="theme-color" content="#4A90E2">
-<link rel="icon" type="image/png" href="/logo.png">
-<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="../logo.png">
+<link rel="manifest" href="../manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
@@ -16,12 +16,12 @@
 <div class="app-shell">
 
   <nav class="bottom-nav">
-    <a href="/docente/dashboard.html" class="active"><span class="icon">🍎</span>Famiglie</a>
+    <a href="./dashboard.html" class="active"><span class="icon">🍎</span>Famiglie</a>
   </nav>
 
   <div style="flex:1; display:flex; flex-direction:column;">
     <header class="topbar">
-      <a href="/docente/dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
+      <a href="./dashboard.html" class="brand"><span class="dot"></span>Il Diario Insieme</a>
       <div class="topbar-actions"><button class="btn btn-ghost btn-sm" id="btn-esci">Esci</button></div>
     </header>
 
@@ -48,11 +48,11 @@
 </div>
 
 <script type="module">
-import { proteggiPagina, esci } from "/js/auth.js";
-import { db, doc, getDoc, setDoc, collectionGroup, query, where, onSnapshot, serverTimestamp } from "/js/firebase-init.js";
-import { showToast } from "/js/utils.js";
+import { proteggiPagina, esci } from "../js/auth.js";
+import { db, doc, getDoc, setDoc, collectionGroup, query, where, onSnapshot, serverTimestamp } from "../js/firebase-init.js";
+import { showToast } from "../js/utils.js";
 
-document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "/index.html"));
+document.getElementById("btn-esci").addEventListener("click", () => esci().then(() => window.location.href = "../index.html"));
 
 proteggiPagina("docente", (user, utente) => {
 
@@ -109,7 +109,7 @@ proteggiPagina("docente", (user, utente) => {
     document.getElementById("zona-collegate").innerHTML = famiglie.map(f => {
       const nome = (f.exists() && f.data().nome_alunno) ? f.data().nome_alunno : "Famiglia senza nome indicato";
       return `
-        <a class="link-row" href="/docente/famiglia.html?id=${f.id}" style="text-decoration:none; color:inherit;">
+        <a class="link-row" href="./famiglia.html?id=${f.id}" style="text-decoration:none; color:inherit;">
           <span class="chi">${nome}</span>
           <span class="badge badge-accettato">apri →</span>
         </a>`;
